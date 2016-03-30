@@ -1,0 +1,12 @@
+*.o
+*.sublime-project
+*.sublime-workspace
+.tags_sorted_by_file
+.tags
+*.bak
+MDK-ARM/Output
+Desktop.ini
+*.o.cmd
+*.ko.cmd
+*.mod.o.cmd
+# MDK-ARM

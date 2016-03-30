@@ -1,0 +1,8 @@
+2015-11-20:Menglong Woo
+    - Add popen自检文件夹/usr/MenglongWu/bin,driver,wlan0,lan0
+    - Add 重新编译gnokii精简成3.0MB
+    - Todo 利用gnokii
+        - 判断短信模块是否存在
+        - 判断SIM卡是否存在
+        - 验证短信是否能发送
+    - Change 修改内核和uboot，启动带声音提示，指示启动到什么阶段

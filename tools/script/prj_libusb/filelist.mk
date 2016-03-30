@@ -1,0 +1,1 @@
+SRCS-y += src/easy-usb-daq-card_dll.c
