@@ -11,6 +11,7 @@
 // #include "tms_gpio.h"
 #include "time.h"
 
+
 #include "netcard.h"
 
 #include <readline/readline.h>
@@ -20,6 +21,7 @@
 #include <tms_gpio.h>
 #include <producetest.h>
 #include <ckself.h>
+
 
 
 void list_ti(struct test_item *pitem, int len)
@@ -185,7 +187,7 @@ void sigalrm_fn(int sig)
 {
 	int count;
 	struct gpio_name ioname;
-	struct gpio_dir iodir;
+	// struct gpio_dir iodir;
 	struct gpio_data iodata;
 
 	system("clear");
@@ -217,13 +219,13 @@ void sigalrm_fn(int sig)
 
 int ti_subdev_status(void *arg)
 {
-	int pin;
+	// int pin;
 	// 测试代码
-	int count = 0;
+	// int count = 0;
 
-	struct gpio_name ioname;
-	struct gpio_dir iodir;
-	struct gpio_data iodata;
+	// struct gpio_name ioname;
+	// struct gpio_dir iodir;
+	// struct gpio_data iodata;
 
 	system("clear");
  	signal(SIGALRM, sigalrm_fn);
@@ -858,12 +860,12 @@ void Introduct()
 }
 int main(int argc,char *argv[])
 {
-	int ret;
-	char buf[40] = {0};
-	char argv1;
-	int i;
-	int ms;
-	int pin,onoff;
+	// int ret;
+	// char buf[40] = {0};
+	// char argv1;
+	// int i;
+	// int ms;
+	// int pin,onoff;
 	// char strout[16];
 
 	if (argc == 2 && memcmp(argv[1], "-s", strlen(argv[1])) == 0) {
@@ -877,7 +879,7 @@ int main(int argc,char *argv[])
 	setvbuf(stdout, "", _IONBF, 0);
 	set_keypress();
 	// ti_subdev_status(NULL);
-	char shell_prompt[256];
+	// char shell_prompt[256];
 	char *input = (char*)NULL;
 	Introduct();
 	while(1) {

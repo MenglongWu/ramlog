@@ -176,7 +176,7 @@ int ti_check_simcard(void *arg)
 {
 	int fd;
 	char buffer[1024];
-	int isfail = 1;
+	// int isfail = 1;
 
 	fd=open(SMS_CAT, O_RDWR);
 	if(fd<=0){
@@ -308,7 +308,7 @@ int part_configx(char *str, char *nval, char *val, int maxlen)
 // ret -1 文件打开失败
 int read_rawconfig(char *file, char *nval, char *val, int maxlen)
 {
-	FILE *fp = NULL;
+	// FILE *fp = NULL;
 	FILE *fin = NULL;
 	char *pret = (char*)1;
 	char strinput[2048];
@@ -341,9 +341,9 @@ int read_rawconfig(char *file, char *nval, char *val, int maxlen)
 
 int read_shval(char *file, char *nval, char *val, int maxlen)
 {
-	FILE *stream;
-	char strout[256];
-	int ret;
+	// FILE *stream;
+	// char strout[256];
+	// int ret;
 
 
 	

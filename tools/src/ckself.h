@@ -1,5 +1,8 @@
 #ifndef _CHECK_SELF_H_
 #define _CHECK_SELF_H_
+
+#include "producetest.h"
+
 int ti_ck_self(void *arg);
 int ti_check_smscat(void *arg);
 int ti_ck_sms_param(void *arg);

@@ -14,6 +14,8 @@
 
 #include <linux/input.h>
 
+#include "pthread.h"
+
 #define DEV_INPUT "/dev/input/mice"
 
 int get_count(int *val);
@@ -67,7 +69,7 @@ void TickStatusIO()
 
 
 	output = false;
-	ret = opendir(checkdir[0].dir);
+	ret = (int)(DIR*)opendir(checkdir[0].dir);
 	// printf("ret = %d\n", ret);
 	// 希望不存在该目录
 	if (checkdir[0].result == 0 && ret == 0) {
@@ -200,22 +202,22 @@ void *ThreadBlacklight(void *arg)
 		}
 		hid_down = 0;
 	}
-	fclose(fd);
+	close(fd);
 }
 
 int main(int argc, char *argv[])
 {
 
-	int ret;
-	char buf[40] = {0};
-	int i;
-	int ms;
-	int pin, onoff;
+	// int ret;
+	// char buf[40] = {0};
+	// int i;
+	// int ms;
+	// int pin, onoff;
 
 
 	open_io(NULL);
 
-	struct gpio_name ioname;
+	// struct gpio_name ioname;
 	struct gpio_dir iodir;
 	struct gpio_data iodata;
 

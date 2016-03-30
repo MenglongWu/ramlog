@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <fcntl.h>
+#include <unistd.h>
+
 //#include<math.h>             //加上这个头文件
 //#include <fs.h>
 //#include <easy-usb-daq-card_dll.h>
@@ -11,8 +13,8 @@ int OpenUsb(void);
 int CloseUsb(void);
 int WriteUsb(int dwPipeNum,char *pBuffer,int dwSize);
 int ReadUsb(int dwPipeNum,char *pBuffer,int dwSize);
-int DO_SOFT(BYTE chan,BYTE state);
-BYTE DI_Soft(void);
+int DO_SOFT(char chan,char state);
+char DI_Soft(void);
 int AD_single(int chan,float* adResult);
 int AD_continu(int chan,int Num_Sample,int Rate_Sample,float *databuf);
 int MAD_continu(int chan_first,int chan_last,int Num_Sample,int Rate_Sample,float  *mad_data);
@@ -176,7 +178,7 @@ int AD_single(int chan,float* adResult)
 {
     if( opened==0)
 	return -1;
-  BYTE buf[16],inbuf[16];
+  char buf[16],inbuf[16];
  // EnterCriticalSection( &g_cs );
  // printf("####AD_single start####\n");
   buf[0]=0;
@@ -219,8 +221,8 @@ int AD_continu(int chan,int Num_Sample,int Rate_Sample,float  *databuf)
 //	EnterCriticalSection( &g_cs );
  
 
-	int num=0;
-  BYTE buf[16],inbuf[1024];
+	// int num=0;
+  char buf[16],inbuf[1024];
   buf[0]=0;
   buf[1]=1;
  if(WriteUsb(0x1,buf,2))//设置模式 单次采样
@@ -293,15 +295,15 @@ int MAD_continu(int chan_first,int chan_last,int Num_Sample,int Rate_Sample,floa
 //	EnterCriticalSection( &g_cs );
   if((chan_last<chan_first)||(chan_first<0)||(chan_last<0)||(chan_first>15)||(chan_last>15))
     return -1;
-  int num=0,i,j;
-  BYTE buf[16],inbuf[1024];
+  int i,j;
+  char buf[16],inbuf[1024];
   buf[0]=0;
   buf[1]=2;
  if(WriteUsb(0x1,buf,2))//设置模式 单次采样
    return -1;
   buf[0]=2;
-  buf[1]=(BYTE)chan_first&0x0f;
-  buf[2]=(BYTE)chan_last&0x0f;
+  buf[1]=(char)chan_first&0x0f;
+  buf[2]=(char)chan_last&0x0f;
  if(WriteUsb(0x1,buf,3)) //设置采样通道
    return -1;
 
@@ -361,7 +363,7 @@ int DA_sigle_out(int chan,int value)
 {
    if( opened==0)
 	return -1;
-  BYTE buf[16];
+  char buf[16];
   if(chan==1)
   {
   buf[0]=7;
@@ -400,7 +402,7 @@ int DA_DATA_SEND(int chan,int Num,int *databuf)
 {
     if( opened==0)
 	return -1;
-    BYTE buf2[64];
+    char buf2[64];
   int aa=0,bb=0;
   int i,j;
   if(Num>512)Num=512;
@@ -471,7 +473,7 @@ int DA_scan_out(int chan,int Freq,int scan_Num)
 	return -1;
  
 
-  BYTE buf[16];
+  char buf[16];
   if(chan==1)
   {
   buf[0]=7;
@@ -502,7 +504,7 @@ int PWM_Out(int chan,int Freq,float DutyCycle,int mod)
   DutyCycle_=DutyCycle*100;
     if( opened==0)
 	return -1;
-BYTE buf[16];
+char buf[16];
   if(chan==1)
   {
   buf[0]=9;
@@ -529,7 +531,7 @@ int PWM_In(int mod)
 
     if( opened==0)
 	return -1;
- BYTE buf[2];
+ char buf[2];
   buf[0]=11;
   buf[1]=mod;
  if(WriteUsb(0x1,buf,2))// 
@@ -542,7 +544,7 @@ int COUNT(int mod)
 
     if( opened==0)
 	return -1;
-  BYTE buf[2];
+  char buf[2];
   buf[0]=12;
   buf[1]=mod;
  if(WriteUsb(0x1,buf,2))// 
@@ -554,7 +556,7 @@ int Read_PWM_In(float* Freq, int* DutyCycle)
 
     if( opened==0)
 	return -1;
-	BYTE inbuf[16];
+	char inbuf[16];
    if(ReadUsb(0x81,inbuf,16)) //读取结果
    return -1;
    if(ReadUsb(0x81,inbuf,16)) //读取结果
@@ -574,7 +576,7 @@ int Read_COUNT(int* count)
 
     if( opened==0)
 	return -1;
-	BYTE inbuf[16];
+	char inbuf[16];
    if(ReadUsb(0x81,inbuf,16)) //读取结果
    return -1;
    if(ReadUsb(0x81,inbuf,16)) //读取结果
@@ -586,11 +588,11 @@ int Read_COUNT(int* count)
    * count+=(unsigned int)inbuf[10]<<24;
 	return 0;
 }
-int DO_SOFT(BYTE chan,BYTE state)
+int DO_SOFT(char chan,char state)
 {
    if( opened==0)
 	return -1;
-  BYTE buf[3];
+  char buf[3];
   buf[0]=13;
   buf[1]=chan;
   buf[2]=state;
@@ -598,11 +600,11 @@ int DO_SOFT(BYTE chan,BYTE state)
    return -1;
 	return 0;
 }
-BYTE DI_Soft(void)
+char DI_Soft(void)
 {
   if( opened==0)
 	return -1;
-	BYTE inbuf[16];
+	char inbuf[16];
    if(ReadUsb(0x81,inbuf,16)) //读取结果
    return -1;
    if(ReadUsb(0x81,inbuf,16)) //读取结果

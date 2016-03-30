@@ -3,7 +3,9 @@
 #include <fcntl.h>   
 #include <linux/fb.h>   
 #include <sys/mman.h>   
-  
+#include <stdlib.h>
+#include <sys/ioctl.h>
+
 #define RED_COLOR565    0x0F100   
 #define GREEN_COLOR565  0x007E0   
 #define BLUE_COLOR565   0x0001F   
@@ -42,7 +44,7 @@ int main(void)
     // the size of the screen in bytes   
     screen_size = vinfo.xres * vinfo.yres * vinfo.bits_per_pixel / 8;  
   
-    printf("%dx%d, %dbpp, screen_size = %d\n", vinfo.xres, vinfo.yres, vinfo.bits_per_pixel, screen_size );  
+    printf("%dx%d, %dbpp, screen_size = %ld\n", vinfo.xres, vinfo.yres, vinfo.bits_per_pixel, screen_size );  
   
     // map framebuffer to user memory   
     fbp565 = (short *)mmap(0, screen_size, PROT_READ | PROT_WRITE, MAP_SHARED, fd_fb, 0);  

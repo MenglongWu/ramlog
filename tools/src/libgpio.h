@@ -32,7 +32,7 @@
 	#define close_io() (0)
 
 #else
-
+#include "tms_gpio.h"
 	int get_count(int *val);
 	int get_io(struct gpio_data *val);
 	int io_name(struct gpio_name *val);
