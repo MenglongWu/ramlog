@@ -1,0 +1,40 @@
+// bug record
+/*! \page bug123 abc
+ intruction
+ \code {.cpp}
+ add code
+ \endcode
+*/
+
+
+
+
+/*! \page commit-20xx-xx-xx brief
+	intruction
+	\code {.cpp}
+	add code
+	\endcode
+*/
+
+/*! \page Bug-1-1-20160413 Bug-1-1-20160413 : 
+	initgpio.elf运行数小时崩溃
+
+	怀疑ckself.c，popen为做检查
+	\code {.cpp}
+	stream = popen(ptiem[i].dir, "r");
+	if (NULL == stream) {
+		continue;
+	}
+	\endcode
+
+	怀疑strout溢出
+	\code {.cpp}
+	ret = fread( strout, sizeof(char), sizeof(strout), stream);
+	strout[ret] = '\0';
+
+	//
+	ret = fread( strout, sizeof(char), sizeof(strout) - 1, stream);
+	strout[ret] = '\0';	
+ 	\endcode
+
+*/

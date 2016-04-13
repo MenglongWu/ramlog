@@ -1,3 +1,6 @@
+2016-04-13:Menglong Woo
+    - \subpage Bug-1-1-20160413
+
 2015-11-20:Menglong Woo
     - Add popen自检文件夹/usr/MenglongWu/bin,driver,wlan0,lan0
     - Add 重新编译gnokii精简成3.0MB

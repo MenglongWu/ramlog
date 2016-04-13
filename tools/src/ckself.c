@@ -118,7 +118,7 @@ int ti_check_smscat(void *arg)
 		int len;
 		len = write(fd,"AT\r\n",4);
 		printf("write len = %d\n", len);
-		if((len=read(fd,buffer,sizeof(buffer)))<0) {
+		if((len=read(fd,buffer,sizeof(buffer) - 1))<0) {
 			perror("read failed.");
 		}
 		else if(len>0){
@@ -154,7 +154,7 @@ int ti_ck_sms_param(void *arg)
 		int len;
 		len = write(fd, pstr, strlen(pstr));
 		// printf("write len = %d\n", len);
-		if((len=read(fd,buffer,sizeof(buffer)))<0) {
+		if((len=read(fd,buffer,sizeof(buffer) - 1))<0) {
 			perror("read failed.");
 		}
 		else if(len>0){
@@ -199,7 +199,7 @@ int ti_check_simcard(void *arg)
 		write(fd,"\r\n",2);
 		usleep(1000*1000);
 		// printf("write len = %d\n", len);
-		if((len=read(fd,buffer,sizeof(buffer)))<0) {
+		if((len=read(fd,buffer,sizeof(buffer) - 1))<0) {
 			
 			
 		}
@@ -233,9 +233,12 @@ int ti_ck_mutil_strstr(struct ck_self *ptiem, int len)
 
 	for (int i = 0; i < len; i++) {
 		stream = popen(ptiem[i].dir, "r");
+		if (NULL == stream) {
+			continue;
+		}
 		
 		// 读出内容，并在末尾添加字符串终结符号
-		ret = fread( strout, sizeof(char), sizeof(strout), stream);
+		ret = fread( strout, sizeof(char), sizeof(strout) - 1, stream);
 		strout[ret] = '\0';
 		pclose(stream);
 		printf("%s", ptiem[i].notice);
@@ -264,8 +267,12 @@ int ti_ck_mutil(struct ck_self *ptiem, int len)
 	for (int i = 0; i < len; i++) {
 		stream = popen(ptiem[i].dir, "r");
 		
+		if (NULL == stream) {
+			continue;
+		}
 		// 读出内容，并在末尾添加字符串终结符号
-		ret = fread( strout, sizeof(char), sizeof(strout), stream);
+		//存在溢出，应该用 sizeof(strout) - 1
+		ret = fread( strout, sizeof(char), sizeof(strout) - 1, stream);
 		strout[ret] = '\0';
 		pclose(stream);
 
