@@ -1,15 +1,7 @@
 // bug record
-/*! \page bug123 abc
- intruction
- \code {.cpp}
- add code
- \endcode
-*/
 
 
-
-
-/*! \page commit-20xx-xx-xx brief
+/*! \page Bug-20xx-xx-xx todo brief
 	intruction
 	\code {.cpp}
 	add code
