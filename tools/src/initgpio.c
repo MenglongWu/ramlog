@@ -39,8 +39,9 @@ void TickStatusIO()
 	};
 
 	struct check_dir checkdir[] = {
-		{	(char*)"/sys/class/net/lan0/", -1,
-			(char*)"ls /sys/class/net/lan0/device -l | awk -F '../../../' \"{print \\$2}\""
+		{
+			(char *)"/sys/class/net/lan0/", -1,
+			(char *)"ls /sys/class/net/lan0/device -l | awk -F '../../../' \"{print \\$2}\""
 		},
 	};
 	struct ck_self cklan0down[] = {
@@ -69,7 +70,7 @@ void TickStatusIO()
 
 
 	output = false;
-	ret = (int)(DIR*)opendir(checkdir[0].dir);
+	ret = (int)(DIR *)opendir(checkdir[0].dir);
 	closedir(ret);
 	// printf("ret = %d\n", ret);
 	// 希望不存在该目录
@@ -77,7 +78,7 @@ void TickStatusIO()
 		output = true;
 	}
 	// 希望存在该目录
-	else if (checkdir[0].result != 0 && ret != 0){
+	else if (checkdir[0].result != 0 && ret != 0) {
 		output = true;
 	}
 	if (output == false) {
@@ -142,7 +143,7 @@ void TickStatusIO()
 		// iodata.data = 1;
 		// set_io(&iodata);
 		close_io();
-		
+
 		sleep(3);
 		// 强制将端口UP
 		system("ifconfig lan0 down ");
@@ -152,7 +153,7 @@ void TickStatusIO()
 		// system("echo up");
 		// sleep(3);
 		// system("/etc/init.d/ifconfig-lan0");
-		
+
 	}
 	else {
 		// RESOULT_OK_EN();

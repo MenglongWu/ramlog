@@ -27,32 +27,35 @@
 
 int netIpIsValid(char *ip)
 {
-  int i;
-  
-  i = inet_addr(ip);
+	int i;
 
-  if((i == 0)||(i == 0xffffffff))
-    return 0;
-  else
-    return 1;
-}
+	i = inet_addr(ip);
 
-int netMaskIsValid(char* subnet)
-{
-    unsigned int b = 0, i, n[4];
-    sscanf(subnet, "%u.%u.%u.%u", &n[3], &n[2], &n[1], &n[0]);
-    for(i = 0; i < 4; ++i) //将子网掩码存入32位无符号整型
-        b += n[i] << (i * 8); 
-    b = ~b + 1;
-    if((b & (b - 1)) == 0) {  //判断是否为2^n
-        return 1;
+	if((i == 0) || (i == 0xffffffff)) {
+		return 0;
 	}
-    return 0;
+	else {
+		return 1;
+	}
 }
 
-int netGwIsValid(char *ip, char *mask, char* gw)
+int netMaskIsValid(char *subnet)
 {
-	unsigned long iip,imask,igw;
+	unsigned int b = 0, i, n[4];
+	sscanf(subnet, "%u.%u.%u.%u", &n[3], &n[2], &n[1], &n[0]);
+	for(i = 0; i < 4; ++i) { //将子网掩码存入32位无符号整型
+		b += n[i] << (i * 8);
+	}
+	b = ~b + 1;
+	if((b & (b - 1)) == 0) {  //判断是否为2^n
+		return 1;
+	}
+	return 0;
+}
+
+int netGwIsValid(char *ip, char *mask, char *gw)
+{
+	unsigned long iip, imask, igw;
 	int ret;
 
 	iip   = inet_addr(ip);
@@ -63,18 +66,18 @@ int netGwIsValid(char *ip, char *mask, char* gw)
 	ret += netMaskIsValid(mask);
 
 	if ( (imask & iip) == (imask & igw) &&
-		ret == 2) {
+	     ret == 2) {
 		return 1;
 	}
 	return 0;
 }
 
 int FormatCfg(
-	char *file, 
-	char *ip, 
-	char *mask, 
-	char *gw, 
-	char *dns)
+    char *file,
+    char *ip,
+    char *mask,
+    char *gw,
+    char *dns)
 {
 	FILE *fp;
 
@@ -99,8 +102,8 @@ int FormatCfg(
  * @param	ip 外网IP
  * @param	mask 外网mask
  * @retval	1 外网 eth0：192.168.0.0/24 、内网 eth：192.168.1.0/24
- * @remarks	
- * @see	
+ * @remarks
+ * @see
  */
 int CheckIPSwitch(char *ip, char *mask)
 {
@@ -123,12 +126,12 @@ int CheckIPSwitch(char *ip, char *mask)
 void Usage()
 {
 	printf(
-		"Usage:\n"
-		"	netcard [ip] [mask] [gw]\n");
+	    "Usage:\n"
+	    "	netcard [ip] [mask] [gw]\n");
 }
 
 
-// 
+//
 // netcard ip mask gw
 int main(int argc, char **argv)
 {
@@ -167,12 +170,12 @@ int main(int argc, char **argv)
 	if (CheckIPSwitch(ip, mask)) {
 		printf("switch net\n");
 		FormatCfg(ETH0, ip, mask, gw, dns);
-		FormatCfg(ETH1, (char*)"192.168.1.254", mask, (char*)"192.168.1.254", dns);
+		FormatCfg(ETH1, (char *)"192.168.1.254", mask, (char *)"192.168.1.254", dns);
 	}
 	else {
 		printf("un switch net\n");
 		FormatCfg(ETH0, ip, mask, gw, dns);
-		FormatCfg(ETH1, (char*)"192.168.0.254", mask, (char*)"192.168.0.254", dns);	
+		FormatCfg(ETH1, (char *)"192.168.0.254", mask, (char *)"192.168.0.254", dns);
 	}
 	printf("ok\n");
 	system("cat /etc/eth0-setting");

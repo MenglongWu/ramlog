@@ -47,9 +47,9 @@ int select_ti(char *str, struct test_item *pitem, int len)
 	}
 	// 只检测第一个字母是否为数字
 	if (isdigit(str[0])) {
-		return pitem[index].fun(NULL);		
+		return pitem[index].fun(NULL);
 	}
-	
+
 	return 0;
 }
 
@@ -85,14 +85,14 @@ int ti_buzzer(void *arg)
 	struct gpio_data iodata;
 	int io_index;
 
-	
+
 #if (CONFIG_BOARD == 11)
 	io_index = IO_LED_ALARM_TOTAL;
 #elif (CONFIG_BOARD == 12)
 	io_index = IO_LED_BUZZER;
 #endif
-	
-	
+
+
 	open_io(NULL);
 	// 复位
 	iodir.index = io_index;
@@ -106,7 +106,7 @@ int ti_buzzer(void *arg)
 	printf("打开蜂鸣器\n");
 	NOTE_END();
 	ECHO_PAUSE();
-	
+
 
 	iodata.index = io_index;
 	iodata.data = 0;
@@ -116,7 +116,7 @@ int ti_buzzer(void *arg)
 	NOTE_END();
 	ECHO_PAUSE();
 	close_io();
-	
+
 	return 0;
 }
 
@@ -157,7 +157,7 @@ int ti_ledrun(void *arg)
 	printf("\e[31m运行灯红色\e[0m\n");
 	NOTE_END();
 	ECHO_PAUSE();
-	
+
 
 
 	iodata.index = IO_LED_RUN_G;
@@ -170,7 +170,7 @@ int ti_ledrun(void *arg)
 	printf("运行灯熄灭\n");
 	NOTE_END();
 	ECHO_PAUSE();
-	
+
 
 	close_io();
 	return 0;
@@ -198,8 +198,7 @@ void sigalrm_fn(int sig)
 	open_io(NULL);
 	open_io(NULL);
 	get_count(&count);
-	for (int i = 0; i < count; i++) 
-	{		
+	for (int i = 0; i < count; i++) {
 
 		ioname.index = i;
 		io_name(&ioname);
@@ -212,8 +211,8 @@ void sigalrm_fn(int sig)
 	}
 	close_io();
 	printf("\n按键盘 'q' 退出\n");
-    	alarm(1);
-    	
+	alarm(1);
+
 	return;
 }
 
@@ -228,15 +227,14 @@ int ti_subdev_status(void *arg)
 	// struct gpio_data iodata;
 
 	system("clear");
- 	signal(SIGALRM, sigalrm_fn);
+	signal(SIGALRM, sigalrm_fn);
 	alarm(1);
 	g_ch = '3';
-	while(1) 
-	{
+	while(1) {
 		g_ch = getchar();
 		if ( (g_ch | 0x20) == 'q') {
 			break;
-		}		
+		}
 	}
 	signal(SIGALRM, SIG_IGN);
 
@@ -252,14 +250,14 @@ int ti_subnet_io(void *arg)
 	iodir.index = IO_IP_SET_GPIO;
 	iodir.dir = IO_OUTPUT;
 	set_dir(&iodir);
-	
+
 
 	system("clear");
 	printf("设置网络IP为192.168.1.3\n");
 	printf("用万用表测试背板上 IP_SET 引脚状态\n\n");
 
-	
-	
+
+
 	iodata.index = IO_IP_SET_GPIO;
 	iodata.data = 1;
 	set_io(&iodata);
@@ -286,24 +284,25 @@ int ti_sw_reset(void *arg)
 {
 	struct gpio_dir iodir;
 	struct gpio_data iodata;
-	
+
 	char ch;
 
 	system("clear");
 	printf("注意：如果现在使用网络连接，如下测试将导致“交换机断网”、“业务”板将不能与MCU通信、LAN口不能与MCU连接，是否继续[Y/N]\n");
-	
+
 	ch = getchar();
 	if ( (ch | 0x20) == 'y' ) {
 		goto _Countinue;
 	}
 	return 0;
 
-_Countinue:;
+_Countinue:
+	;
 	open_io(NULL);
 	iodir.index = IO_SW_RESET;
 	iodir.dir = IO_OUTPUT;
 	set_dir(&iodir);
-	
+
 	printf("\n");
 	printf("\n按任意键将执行如下:\n");
 	printf("\t拉低交换机复位信号，万用表可测SW_RESET信号值\n");
@@ -344,7 +343,7 @@ int ti_set_mac(void *arg)
 	printf("当前网络状态\n");
 	system("ifconfig | grep eth");
 	system("ifconfig | grep lan");
-	
+
 	printf("如果此时电脑不能ping通过MCU Wlan，通过如下办法解决\n");
 	printf("	1. 开始->运行->CMD\n");
 	printf("	2. 输入arp -a\n");
@@ -358,21 +357,21 @@ int ti_set_mac(void *arg)
 int ti_gpio_output(void *arg)
 {
 	struct test_item titem[] = {
-		{ti_null,(char*)"返回上一级",},
-		{ti_key_reset,(char*)"按键复位重启系统",},
-		{ti_buzzer,(char*)"蜂鸣器测试",},
-		{ti_ledrun,(char*)"运行灯测试",},
-		{ti_subnet_io,(char*)"内网网段IO指示",},
-		{ti_sw_reset,(char*)"测试交换机复位信号",},
+		{ti_null, (char *)"返回上一级",},
+		{ti_key_reset, (char *)"按键复位重启系统",},
+		{ti_buzzer, (char *)"蜂鸣器测试",},
+		{ti_ledrun, (char *)"运行灯测试",},
+		{ti_subnet_io, (char *)"内网网段IO指示",},
+		{ti_sw_reset, (char *)"测试交换机复位信号",},
 	};
-	char *input = (char*)NULL;
+	char *input = (char *)NULL;
 
 
 	system("clear");
 	while(1) {
 		list_ti(titem, sizeof(titem) / sizeof(struct test_item));
-		
-		input = readline((char*)"输出IO测试>");
+
+		input = readline((char *)"输出IO测试>");
 		if (!input) {
 			free(input);
 		}
@@ -409,26 +408,30 @@ int ti_ck_netcard_active(void *arg)
 int ti_ck_netcard_position(void *arg)
 {
 	struct check_dir checkdir[] = {
-		{	(char*)"/sys/class/net/eth0", 0,
-			(char*)"ls /sys/class/net/eth0/device -l | awk -F '../../../' \"{print \\$2}\""
+		{
+			(char *)"/sys/class/net/eth0", 0,
+			(char *)"ls /sys/class/net/eth0/device -l | awk -F '../../../' \"{print \\$2}\""
 		},
-		{	(char*)"/sys/class/net/eth1", 0,
-			(char*)"ls /sys/class/net/eth1/device -l | awk -F '../../../' \"{print \\$2}\""
+		{
+			(char *)"/sys/class/net/eth1", 0,
+			(char *)"ls /sys/class/net/eth1/device -l | awk -F '../../../' \"{print \\$2}\""
 		},
-		{	(char*)"/sys/class/net/wlan0", -1,
-			(char*)"ls /sys/class/net/wlan0/device -l | awk -F '../../../' \"{print \\$2}\""
+		{
+			(char *)"/sys/class/net/wlan0", -1,
+			(char *)"ls /sys/class/net/wlan0/device -l | awk -F '../../../' \"{print \\$2}\""
 		},
-		{	(char*)"/sys/class/net/lan0", -1,
-			(char*)"ls /sys/class/net/lan0/device -l | awk -F '../../../' \"{print \\$2}\""
+		{
+			(char *)"/sys/class/net/lan0", -1,
+			(char *)"ls /sys/class/net/lan0/device -l | awk -F '../../../' \"{print \\$2}\""
 		},
 	};
 	DIR *ret;
 	bool output = false;
-	
+
 	system("clear");
 	NOTE_START();
 	printf("该功能检验网卡对应的USB接口是否正确，由于改板发生的改动\n"
-		"不应该存在eth0,eth1网卡，应该存在wlan0,lan0网卡\n");
+	       "不应该存在eth0,eth1网卡，应该存在wlan0,lan0网卡\n");
 	NOTE_END();
 
 	for (int i = 0; i < sizeof(checkdir) / sizeof(struct check_dir); i++) {
@@ -440,7 +443,7 @@ int ti_ck_netcard_position(void *arg)
 			output = true;
 		}
 		// 希望存在该目录
-		else if (checkdir[i].result != 0 && ret != 0){
+		else if (checkdir[i].result != 0 && ret != 0) {
 			output = true;
 		}
 
@@ -466,18 +469,18 @@ int ti_ck_netcard_position(void *arg)
 
 	struct ck_self ckitem[] = {
 		{
-			(char*)"检测 Wan0 是否与交换机连接",
-			(char*)"cat /sys/class/net/wlan0/carrier",
-			(char*)"1",
+			(char *)"检测 Wan0 是否与交换机连接",
+			(char *)"cat /sys/class/net/wlan0/carrier",
+			(char *)"1",
 			COND_EQ,
 		},
 		{
-			(char*)"检测 Lan0 是否有网线连接",
-			(char*)"cat /sys/class/net/lan0/carrier",
-			(char*)"1",
+			(char *)"检测 Lan0 是否有网线连接",
+			(char *)"cat /sys/class/net/lan0/carrier",
+			(char *)"1",
 			COND_EQ,
 		},
-		
+
 	};
 	int r;
 	for (int i = 0; i < sizeof(ckitem) / sizeof(struct ck_self); i++) {
@@ -493,12 +496,12 @@ int ti_ck_netcard_position(void *arg)
 	NOTE_START();
 	printf("上面USB网卡位置表示格式：\n");
 	printf(
-		"1-3.2:1.0\n"
-		"--- ^ ---\n"
-		" ^  |  ^\n"
-		" |  |  |-----usb 1.0，不用关心\n"
-		" |  |----- USB HUB 第2端口，关注该项\n"
-		" |----- 不用关心\n");
+	    "1-3.2:1.0\n"
+	    "--- ^ ---\n"
+	    " ^  |  ^\n"
+	    " |  |  |-----usb 1.0，不用关心\n"
+	    " |  |----- USB HUB 第2端口，关注该项\n"
+	    " |----- 不用关心\n");
 	NOTE_END();
 	ECHO_PAUSE();
 	return 0;
@@ -507,10 +510,10 @@ int ti_ck_netcard_position(void *arg)
 int ti_ck_netcard_subnet(void *arg)
 {
 	struct check_dir checkdir[] = {
-		{(char*)"/sys/class/net/eth0", -1},
-		{(char*)"/sys/class/net/eth1", -1},
-		{(char*)"/sys/class/net/wlan0", 0},
-		{(char*)"/sys/class/net/lan0", 0},
+		{(char *)"/sys/class/net/eth0", -1},
+		{(char *)"/sys/class/net/eth1", -1},
+		{(char *)"/sys/class/net/wlan0", 0},
+		{(char *)"/sys/class/net/lan0", 0},
 	};
 	DIR *ret;
 	bool output = false;
@@ -524,7 +527,7 @@ int ti_ck_netcard_subnet(void *arg)
 			output = true;
 		}
 		// 希望存在该目录
-		else if (checkdir[i].result != 0 && ret != 0){
+		else if (checkdir[i].result != 0 && ret != 0) {
 			output = true;
 		}
 
@@ -539,20 +542,20 @@ int ti_ck_netcard_subnet(void *arg)
 			break;
 		}
 	}
-	
+
 	return 0;
 }
 int ti_set_ip(void *arg)
 {
-	char *input = (char*)NULL;
-	char *strip = (char*)NULL;
-	char *strmask = (char*)NULL;
-	char *strgw = (char*)NULL;
+	char *input = (char *)NULL;
+	char *strip = (char *)NULL;
+	char *strmask = (char *)NULL;
+	char *strgw = (char *)NULL;
 	char strout[256];
 
 	system("clear");
 	printf("\n当前网卡信息\n");
-	system("ifconfig  | grep \"eth.\\|lan.\\|lo.\\|inet addr:\"");	
+	system("ifconfig  | grep \"eth.\\|lan.\\|lo.\\|inet addr:\"");
 	// ECHO_PAUSE();
 	NOTE_START();
 	printf("设置wlan0网卡，lan0网卡自动配置\n");
@@ -563,7 +566,7 @@ int ti_set_ip(void *arg)
 
 
 	while(1) {
-		input = readline((char*)"输入IP:");
+		input = readline((char *)"输入IP:");
 		if(!input) {
 			return -1;
 		}
@@ -574,7 +577,7 @@ int ti_set_ip(void *arg)
 	}
 
 	while(1) {
-		input = readline((char*)"输入掩码:");
+		input = readline((char *)"输入掩码:");
 		if(!input) {
 			return -1;
 		}
@@ -585,7 +588,7 @@ int ti_set_ip(void *arg)
 	}
 
 	while(1) {
-		input = readline((char*)"输入网关:");
+		input = readline((char *)"输入网关:");
 		if(!input) {
 			return -1;
 		}
@@ -603,7 +606,7 @@ int ti_set_ip(void *arg)
 		printf("\t掩码输入不合法\n");
 		return -1;
 	}
-	
+
 	if (0 == netGwIsValid(strip, strmask, strgw)) {
 		printf("\t网关输入不合法，必须和IP在统一网段\n");
 		return -1;
@@ -611,7 +614,7 @@ int ti_set_ip(void *arg)
 
 
 	snprintf(strout, 256, "/usr/MenglongWu/bin/netcard.elf %s %s %s",
-		strip, strmask, strgw);
+	         strip, strmask, strgw);
 	system(strout);
 	// 设置IP并配置防火墙
 	system("/etc/init.d/ifconfig-eth0");
@@ -629,8 +632,8 @@ int ti_set_ip(void *arg)
 int ti_ck_netcard_mount(void *arg)
 {
 	struct check_dir checkdir[] = {
-		{(char*)"/sys/class/net/wlan0", 0},
-		{(char*)"/sys/class/net/lan0", 0},
+		{(char *)"/sys/class/net/wlan0", 0},
+		{(char *)"/sys/class/net/lan0", 0},
 	};
 	DIR *ret;
 	bool output = false;
@@ -640,8 +643,9 @@ int ti_ck_netcard_mount(void *arg)
 	NOTE_START();
 	printf("该功能检测wlan0和lan0网卡是否存在，重启网卡后验证网卡是否依旧存在\n");
 	NOTE_END();
-_Check:;
-	
+_Check:
+	;
+
 	for (int i = 0; i < sizeof(checkdir) / sizeof(struct check_dir); i++) {
 		ret = opendir(checkdir[i].dir);
 		// 希望不存在该目录
@@ -649,7 +653,7 @@ _Check:;
 			output = true;
 		}
 		// 希望存在该目录
-		else if (checkdir[i].result != 0 && ret != 0){
+		else if (checkdir[i].result != 0 && ret != 0) {
 			output = true;
 		}
 
@@ -687,20 +691,20 @@ _Check:;
 int ti_netcard(void *arg)
 {
 	struct test_item titem[] = {
-		{ti_null,(char*)"返回上一级",},
-		{ti_set_ip,(char*)"设置Wlan IP，并自动配置LAN IP，配置防火墙",},
-		{ti_ck_netcard_active,(char*)"检查当前存在的网卡",},
-		{ti_ck_netcard_position,(char*)"检查网卡位置",},
-		{ti_ck_netcard_subnet,(char*)"检查双网卡IP是否处于不同网段",},
-		{ti_ck_netcard_mount,(char*)"检查网卡自动挂载",},
+		{ti_null, (char *)"返回上一级",},
+		{ti_set_ip, (char *)"设置Wlan IP，并自动配置LAN IP，配置防火墙",},
+		{ti_ck_netcard_active, (char *)"检查当前存在的网卡",},
+		{ti_ck_netcard_position, (char *)"检查网卡位置",},
+		{ti_ck_netcard_subnet, (char *)"检查双网卡IP是否处于不同网段",},
+		{ti_ck_netcard_mount, (char *)"检查网卡自动挂载",},
 	};
-	char *input = (char*)NULL;
+	char *input = (char *)NULL;
 
 	system("clear");
 	while(1) {
 		list_ti(titem, sizeof(titem) / sizeof(struct test_item));
-		
-		input = readline((char*)"输出IO测试>");
+
+		input = readline((char *)"输出IO测试>");
 		if (!input) {
 			free(input);
 		}
@@ -716,8 +720,8 @@ int ti_netcard(void *arg)
 
 int ti_settime(void *arg)
 {
-	char *input = (char*)NULL;
-	char strout[128]; 
+	char *input = (char *)NULL;
+	char strout[128];
 
 	system("clear");
 	printf("显示当前系统时间:\n\n");
@@ -725,8 +729,9 @@ int ti_settime(void *arg)
 	system("date \"+%Y-%m-%d %H:%M:%S\"");
 	printf("\n放入电池，设置本机时间，格式：(20xx-mm-dd hh:mm)\n\n");
 
-_Again:;
-	input = readline((char*)"输入时间:   ");
+_Again:
+	;
+	input = readline((char *)"输入时间:   ");
 	// printf("%d\n", input[0]);
 	if (!input) {
 		free(input);
@@ -742,7 +747,7 @@ _Again:;
 	printf("             ");
 	system("date \"+%Y-%m-%d %H:%M:%S\"");
 	ECHO_PAUSE();
-	return 0;	
+	return 0;
 }
 
 
@@ -753,15 +758,15 @@ int ti_sms(void *arg)
 	return 0;
 }
 struct test_item g_titem[] = {
-	{ti_null,(char*)"退出系统",},
-	{ti_ck_self, (char*)"自检"},
-	{ti_settime,(char*)"设置本机时间",},
-	{ti_gpio_output,(char*)"输出IO测试",},
-	{ti_netcard,(char*)"USB网卡信息",},
-	{ti_subdev_status,(char*)"测试业务办插拔状态",},
-	{ti_set_mac,(char*)"随机生成本机网卡MAC地址",},
-	{ti_sms,(char*)"测试短信模块",}
-	
+	{ti_null, (char *)"退出系统",},
+	{ti_ck_self, (char *)"自检"},
+	{ti_settime, (char *)"设置本机时间",},
+	{ti_gpio_output, (char *)"输出IO测试",},
+	{ti_netcard, (char *)"USB网卡信息",},
+	{ti_subdev_status, (char *)"测试业务办插拔状态",},
+	{ti_set_mac, (char *)"随机生成本机网卡MAC地址",},
+	{ti_sms, (char *)"测试短信模块",}
+
 
 };
 
@@ -769,26 +774,26 @@ struct test_item g_titem[] = {
 #include <termios.h>
 #include <unistd.h>
 static struct termios stored_settings;
- 
+
 void set_keypress(void)                               //设置终端为RAW模式，并关闭回显
 {
-    struct termios new_settings;
-    tcgetattr(0,&stored_settings);
-    new_settings = stored_settings;
-   
-    new_settings.c_lflag &= (~ICANON);
-    // new_settings.c_lflag &= (~ECHO);
-    new_settings.c_cc[VTIME] = 0;
-    new_settings.c_cc[VMIN] = 1;
-    tcsetattr(0,TCSANOW,&new_settings);
-    return;
+	struct termios new_settings;
+	tcgetattr(0, &stored_settings);
+	new_settings = stored_settings;
+
+	new_settings.c_lflag &= (~ICANON);
+	// new_settings.c_lflag &= (~ECHO);
+	new_settings.c_cc[VTIME] = 0;
+	new_settings.c_cc[VMIN] = 1;
+	tcsetattr(0, TCSANOW, &new_settings);
+	return;
 }
-  
+
 void reset_keypress(void)                                //恢复终端属性
 
 {
-    tcsetattr(0,TCSANOW,&stored_settings);
-    return;
+	tcsetattr(0, TCSANOW, &stored_settings);
+	return;
 }
 
 int alarm_buzzer(void)
@@ -813,39 +818,39 @@ int alarm_buzzer(void)
 		iodata.index = io_index;
 		iodata.data = 1;
 		set_io(&iodata);
-		
-		usleep(1000*500);
+
+		usleep(1000 * 500);
 		iodata.index = io_index;
 		iodata.data = 0;
 		set_io(&iodata);
-		usleep(1000*400);	
+		usleep(1000 * 400);
 	}
-	
+
 	close_io();
-	
+
 	return 0;
 }
 void Introduct()
 {
 	system("clear");
-	printf(	
-		"|--------------------------------------------------------|\n"
-		"|                                                        |\n"
-		"|             TMSxxTC 6U设备生产测试工具                 |\n"
-		"|                                                        |\n"
-		"|--------------------------------------------------------|\n"
-	// printf(	
-		"注意:\n"
-		"\t该工具仅用于 'TMSxx项目 MCU 板卡' 功能检测，随着后期开发\n"
-		"\t变动软件也需相应升级，使用前先检测 '适应电路板' 是否同手\n"
-		"\t上的电路板型号\n");
+	printf(
+	    "|--------------------------------------------------------|\n"
+	    "|                                                        |\n"
+	    "|             TMSxxTC 6U设备生产测试工具                 |\n"
+	    "|                                                        |\n"
+	    "|--------------------------------------------------------|\n"
+	    // printf(
+	    "注意:\n"
+	    "\t该工具仅用于 'TMSxx项目 MCU 板卡' 功能检测，随着后期开发\n"
+	    "\t变动软件也需相应升级，使用前先检测 '适应电路板' 是否同手\n"
+	    "\t上的电路板型号\n");
 	printf("软件信息:\n"
-		"\t软件名  	%s\n"
-		"\t版本    	%d.%d.%d\n"
-		"\t编译时间	%s\n\n",
-		PRJ_NAME,
-		PRJ_VERSION,PRJ_PATCHLEVEL,PRJ_SUBLEVEL,
-		BUILD_DATE);
+	       "\t软件名  	%s\n"
+	       "\t版本    	%d.%d.%d\n"
+	       "\t编译时间	%s\n\n",
+	       PRJ_NAME,
+	       PRJ_VERSION, PRJ_PATCHLEVEL, PRJ_SUBLEVEL,
+	       BUILD_DATE);
 	// printf("%s  %d %d %d",PRJ_NAME,
 	// 	PRJ_VERSION,PRJ_PATCHLEVEL,PRJ_SUBLEVEL);
 	printf("适应电路板:\n");
@@ -853,12 +858,12 @@ void Introduct()
 	printf("\tJW-CUV1.1\n");
 #endif
 
-#if (CONFIG_BOARD == 12) 
+#if (CONFIG_BOARD == 12)
 	printf("\tJW-CUV1.2\n");
 #endif
 
 }
-int main(int argc,char *argv[])
+int main(int argc, char *argv[])
 {
 	// int ret;
 	// char buf[40] = {0};
@@ -880,7 +885,7 @@ int main(int argc,char *argv[])
 	set_keypress();
 	// ti_subdev_status(NULL);
 	// char shell_prompt[256];
-	char *input = (char*)NULL;
+	char *input = (char *)NULL;
 	Introduct();
 	while(1) {
 		list_ti(g_titem, sizeof(g_titem) / sizeof(struct test_item));
@@ -889,7 +894,7 @@ int main(int argc,char *argv[])
 			free(input);
 			input = NULL;
 		}
-		input= readline((char*)"ProduceTest>");
+		input = readline((char *)"ProduceTest>");
 		if(!input) {
 			return -1;
 		}

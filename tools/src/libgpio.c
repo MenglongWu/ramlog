@@ -7,9 +7,9 @@
  @section exynos-4412
 
  @section Library
-	-# 
+	-#
 - 2015-9,Menglong Woo,MenglongWoo@aliyun.com
- 	
+
 */
 #include <stdio.h>
 #include <stdlib.h>
@@ -35,13 +35,13 @@ static int fd = 0;
 int get_count(int *val)
 {
 	ioctl(fd, CMD_GET_COUNT, val);
-	return 0;	
+	return 0;
 }
 
 int get_io(struct gpio_data *val)
 {
 	ioctl(fd, CMD_GET_VAL, val);
-	return 0;	
+	return 0;
 }
 
 
@@ -70,12 +70,12 @@ int set_dir(struct gpio_dir *val)
 int open_io(char *file)
 {
 	if (file == NULL) {
-		fd = open("/dev/tms_gpio0", O_RDWR);	
+		fd = open("/dev/tms_gpio0", O_RDWR);
 	}
 	else {
 		fd = open(file, O_RDWR);
 	}
-	
+
 	// /dev/leds-wml0
 	if(fd < 0) {
 		printf("open device tms_gpio0\n");
