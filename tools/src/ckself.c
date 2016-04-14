@@ -233,6 +233,9 @@ int ti_ck_mutil_strstr(struct ck_self *ptiem, int len)
 
 	for (int i = 0; i < len; i++) {
 		stream = popen(ptiem[i].dir, "r");
+		if (NULL == stream) {
+			continue;
+		}
 		
 		// 读出内容，并在末尾添加字符串终结符号
 		ret = fread( strout, sizeof(char), sizeof(strout) - 1, stream);
@@ -262,26 +265,19 @@ int ti_ck_mutil(struct ck_self *ptiem, int len)
 	int failcount = 0;
 	
 	for (int i = 0; i < len; i++) {
-		stream = popen(ptiem[i].dir, "r");
-		// printf("popen ret %d ", (int)stream);
-		// perror("popen()");
+		stream = popen(ptiem[i].dir, "r");		
 		if (NULL == stream) {
 			continue;
 		}
-		printf("%s():%d\n", __FUNCTION__, __LINE__);
-		//存在溢出，应该用 sizeof(strout) - 1
 		// 读出内容，并在末尾添加字符串终结符号
+		//存在溢出，应该用 sizeof(strout) - 1
 		ret = fread( strout, sizeof(char), sizeof(strout) - 1, stream);
 		strout[ret] = '\0';
-		ret = pclose(stream);
-		// printf("pclose ret %d ", ret);
-		perror("pclose()");
+		pclose(stream);
 
-		printf("%s():%d\n", __FUNCTION__, __LINE__);
-		// printf("%s\n%s\n", strout, POS_WLAN0);
+		
 		printf("%s", ptiem[i].notice);
 
-		printf("%s():%d\n", __FUNCTION__, __LINE__);
 		if (ptiem[i].condition == COND_EQ) {
 			if (0 != memcmp(strout, ptiem[i].cmp , strlen(ptiem[i].cmp) )) {
 				failcount++;

@@ -1,3 +1,4 @@
 /*! \page buglist BUG列表
-	- \subpage Bug-1-1-20160413
+	- \subpage Bug-20160413
+    - \subpage Fix-20160414
 */

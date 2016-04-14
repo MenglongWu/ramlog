@@ -70,6 +70,7 @@ void TickStatusIO()
 
 	output = false;
 	ret = (int)(DIR*)opendir(checkdir[0].dir);
+	closedir(ret);
 	// printf("ret = %d\n", ret);
 	// 希望不存在该目录
 	if (checkdir[0].result == 0 && ret == 0) {
@@ -102,7 +103,6 @@ void TickStatusIO()
 		return ;
 	}
 
-	printf("%s():%d\n", __FUNCTION__, __LINE__);
 	ret = ti_ck_mutil(&cklan0down[0], 1);
 	if (1 == ret) {
 		printf("\n\n-------- turn up lan0 --------\n");
@@ -111,7 +111,6 @@ void TickStatusIO()
 		system("ifconfig lan0 up");
 	}
 
-	printf("%s():%d\n", __FUNCTION__, __LINE__);
 	ret = ti_ck_mutil(&ckwlan0down[0], 1);
 	if (1 == ret) {
 		printf("\n\n-------- turn up wlan0 --------\n");
@@ -121,7 +120,6 @@ void TickStatusIO()
 	}
 
 
-	printf("%s():%d\n", __FUNCTION__, __LINE__);
 	ret = ti_ck_mutil(&ckitem[0], 1);
 	if (1 == ret) {
 		// RESOULT_NO_EN();
@@ -182,7 +180,6 @@ void *ThreadBlacklight(void *arg)
 
 	int len;
 	while(1) {
-		printf("%s():%d\n", __FUNCTION__, __LINE__);
 		for (int i = 0; i < 30; i++) {
 			len = read(fd, &touch_key, sizeof(touch_key));
 			// printf("len %d\n", len);
