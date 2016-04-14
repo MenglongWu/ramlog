@@ -70,6 +70,7 @@ void TickStatusIO()
 
 	output = false;
 	ret = (int)(DIR*)opendir(checkdir[0].dir);
+	closedir(ret);
 	// printf("ret = %d\n", ret);
 	// 希望不存在该目录
 	if (checkdir[0].result == 0 && ret == 0) {
@@ -102,7 +103,6 @@ void TickStatusIO()
 		return ;
 	}
 
-
 	ret = ti_ck_mutil(&cklan0down[0], 1);
 	if (1 == ret) {
 		printf("\n\n-------- turn up lan0 --------\n");
@@ -118,7 +118,6 @@ void TickStatusIO()
 		sleep(1);
 		system("ifconfig wlan0 up");
 	}
-
 
 
 	ret = ti_ck_mutil(&ckitem[0], 1);
