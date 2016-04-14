@@ -260,9 +260,11 @@ int ti_ck_mutil(struct ck_self *ptiem, int len)
 	char strout[256];
 	int ret;
 	int failcount = 0;
-
+	
 	for (int i = 0; i < len; i++) {
 		stream = popen(ptiem[i].dir, "r");
+		// printf("popen ret %d ", (int)stream);
+		// perror("popen()");
 		if (NULL == stream) {
 			continue;
 		}
@@ -271,7 +273,9 @@ int ti_ck_mutil(struct ck_self *ptiem, int len)
 		// 读出内容，并在末尾添加字符串终结符号
 		ret = fread( strout, sizeof(char), sizeof(strout) - 1, stream);
 		strout[ret] = '\0';
-		pclose(stream);
+		ret = pclose(stream);
+		// printf("pclose ret %d ", ret);
+		perror("pclose()");
 
 		printf("%s():%d\n", __FUNCTION__, __LINE__);
 		// printf("%s\n%s\n", strout, POS_WLAN0);
