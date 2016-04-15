@@ -18,7 +18,12 @@
 		pi6_arg=mlib
 	pi7=script/prj_libusb
 		pi7_arg=mlib
+	pi8=script/prj_qt
+		pi8_arg=elf
+	pi9=script/prj_log
+		pi9_arg=elf
+		
 	# pi7=script/prj_tms_gpio
 	# 	pi7_arg=kmod
 # default project item
-export DP=pi3
+export DP=pi9
