@@ -55,32 +55,42 @@ int _rl_findlast(struct ramlog *val)
 	// 在日志目录下搜索所有日志文件，并以时间排序
 	snprintf(cmd, 1024,
 	         "cd %s;"
-	         "ls -tr | grep '%s'|"
-	         "tail -n %d", val->rampath, val->prefix, MAX_LAST_LOG);
+	         "ls  | grep '%s'|"
+	         "tail -n %d", val->diskpath, val->prefix, MAX_LAST_LOG);
+	printf("cmd %s\n", cmd);
 
 	stream = popen(cmd, "r");
 	if (stream == NULL) {
 		perror("_rl_findlast() popen()");
 		return 0;
 	}
-
+	// fread(cmd , 1, 1024, stream);
+	// printf("out %s\n", cmd);
+	// return 0;
 	// 遍历所有收到的文件名，并记录ID
-	snprintf(filter, 32, "%s%%d", val->prefix);
+	// snprintf(filter, 32, "%s%%d", val->prefix);
+	snprintf(filter, 32, "%s%s-%%d", val->prefix, val->tm);
 	for (i = 0; i < MAX_LAST_LOG; i++) {
-		fgets(cmd, 1024, stream);
+
+		fgets(val->last_id[i], 1024, stream);
 		if (feof(stream)) {
 			break;
 		}
-		sscanf(cmd, filter, &val->last_id[i]);
-		// dbg("%s id = %d\n", cmd, val->last_id[i]);
+		// strcpy(cmd, "log20160415-14-49-41-3");
+		// sscanf(cmd, filter, &val->last_id[i]);
+		// dbg("[%s] [%s] id = %d\n", cmd, filter, val->last_id[i]);
+		int len;
+		len = strlen(val->last_id[i]);
+		val->last_id[i][len-1] = '\0';
+		dbg("[%s]\n", val->last_id[i]);
 	}
-	// printf("i = %d\n", i);
-	if (i == 0) {
-		val->curid = val->last_id[i];
-	}
-	else {
-		val->curid = val->last_id[i - 1];
-	}
+	printf("i = %d\n", i);
+	// if (i == 0) {
+	// 	val->curid = val->last_id[i];
+	// }
+	// else {
+	// 	val->curid = val->last_id[i - 1];
+	// }
 	pclose(stream);
 
 
@@ -95,6 +105,33 @@ int _rl_findlast(struct ramlog *val)
  */
 int _rl_rm_except_last(struct ramlog *val)
 {
+	char cmd[1024];
+	char filter[32];
+	FILE *stream;
+	int i;
+	char filelist[256] = "";
+
+	for (i = 0; i < MAX_LAST_LOG; i++) {
+		if (val->last_id[i]) {
+			if (i != 0) {
+				strcat(filelist, "\\|");
+			}
+			strcat(filelist, val->last_id[i]);
+		}
+		else {
+			break;	
+		}
+		
+	}
+	// 在日志目录下搜索所有日志文件，并以时间排序
+	snprintf(cmd, 1024,
+	         "cd %s;"
+	         "ls  | grep -v '%s'|"
+	         "xargs rm -f", val->diskpath, filelist);
+	printf("--------cmd %s\n", cmd);
+	system(cmd);
+	// exit(0);
+
 	return 0;
 }
 
@@ -118,16 +155,45 @@ void _rl_rm_ram(struct ramlog *val)
 }
 void _rl_ram2disk(struct ramlog *val)
 {
+	// return ;
 	char cmd[1024];
 	snprintf(cmd, 1024, "cp %s/* %s", val->rampath, val->diskpath);
 	system(cmd);
 	printf("val->curid %d\n", val->curid);
+}
+
+int _rl_ckdirsize(struct ramlog *val)
+{
+	char cmd[1024];
+	char str[32];
+	FILE *stream;
+	int dirsize;
+
+	snprintf(cmd, 1024, "du -b %s", val->diskpath);
+	stream = popen(cmd, "r");
+	if (stream == NULL) {
+		return 0;
+	}
+	fgets(str,  32, stream);
+	pclose(stream);
+
+
+
+	dirsize = atoi(str);
+	printf("dirsize = %d s_total %ld\n", dirsize , val->s_total);
+	if (dirsize > val->s_total) {
+		_rl_rm_except_last(val);
+	}
+	
+
+	return 0;
 }
 int rl_init(struct ramlog *val,
             char *rampath, char *diskpath,
             int s_log, int s_total)
 {
 	bzero(val, sizeof(struct ramlog));
+
 
 	if (NULL == rampath) {
 		val->rampath     = def_rampath;
@@ -146,16 +212,26 @@ int rl_init(struct ramlog *val,
 	if (s_log < 4 * _1K ) {
 		val->s_log        = 4 * _1K;
 	}
-	if (val->s_total < val->s_log * MAX_LAST_LOG) {
+	else {
+		val->s_log	= s_log;
+	}
+	if (s_total < val->s_log * MAX_LAST_LOG) {
 		val->s_total = 4 * _1K * MAX_LAST_LOG;
+	}
+	else {
+		val->s_total = s_total;
 	}
 
 
 	mkdir(val->rampath, 777);
+	mkdir(val->diskpath, 777);
 
-	//_rl_findlast(val);
-	// printf("logid %d\n", val->curid);
 	_rl_tm(val);
+	_rl_findlast(val);
+	_rl_ckdirsize(val);
+	
+	// printf("logid %d\n", val->curid);
+	
 	val->curid = 0;
 	snprintf(val->name, 256, "%s/%s%s-%d", val->rampath, val->prefix, val->tm, val->curid);
 	printf("val->name %s\n" , val->name);
@@ -287,7 +363,7 @@ int main()
 	memset(data + 1024 * 9, 'a', 1024);
 
 
-	rl_init(&rl, NULL, NULL, 0, 0);
+	rl_init(&rl, NULL, NULL, 0, 200* _1K);
 	ResetConst();
 
 #if 1
@@ -333,7 +409,7 @@ int main()
 #endif
 	PrintCost();
 	printf("father ready end\n");
-	sleep(4);
+	// sleep(4);
 	printf("father end %d \n", rl.curid);
 
 	return 0;
