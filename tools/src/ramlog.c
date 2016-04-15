@@ -8,8 +8,7 @@
 #include <unistd.h>
 const char def_rampath  [] = "/dev/shm/log";
 const char def_diskpath  [] = "./log";
-//const char def_rampath  [] = "./log";
-const char def_prefix[] =  "log";
+const char def_prefix[] =  "log-";
 
 
 
@@ -44,7 +43,7 @@ log3
 log4
 log5
  */
-int _rl_findlast(struct ramlog *val)
+int _rl_findlast(struct ramlog *val, char *dir)
 {
 
 	char cmd[1024];
@@ -56,7 +55,7 @@ int _rl_findlast(struct ramlog *val)
 	snprintf(cmd, 1024,
 	         "cd %s;"
 	         "ls  | grep '%s'|"
-	         "tail -n %d", val->diskpath, val->prefix, MAX_LAST_LOG);
+	         "tail -n %d", dir, val->prefix, MAX_LAST_LOG);
 	printf("cmd %s\n", cmd);
 
 	stream = popen(cmd, "r");
@@ -103,11 +102,9 @@ int _rl_findlast(struct ramlog *val)
  * @retval	null
  * @remarks
  */
-int _rl_rm_except_last(struct ramlog *val)
+int _rl_rm_except_last(struct ramlog *val, char *dir)
 {
 	char cmd[1024];
-	char filter[32];
-	FILE *stream;
 	int i;
 	char filelist[256] = "";
 
@@ -127,14 +124,14 @@ int _rl_rm_except_last(struct ramlog *val)
 	snprintf(cmd, 1024,
 	         "cd %s;"
 	         "ls  | grep -v '%s'|"
-	         "xargs rm -f", val->diskpath, filelist);
+	         "xargs rm -f", dir, filelist);
 	printf("--------cmd %s\n", cmd);
 	system(cmd);
 	// exit(0);
 
 	return 0;
 }
-
+#include <time.h>
 void _rl_tm(struct ramlog *val)
 {
 	time_t t;
@@ -142,17 +139,31 @@ void _rl_tm(struct ramlog *val)
 
 	t = time(NULL);
 	local = localtime(&t); //转为本地时间
-
-
-	// char buf[20];
 	strftime(val->tm, 20, "%Y%m%d-%H-%M-%S", local);
 }
+/**
+ * @brief	清除所有ram文件
+ * @param	null
+ * @retval	null
+ * @remarks	
+ * @see	
+ */
+
 void _rl_rm_ram(struct ramlog *val)
 {
 	char cmd[1024];
 	snprintf(cmd, 1024, "rm %s/*", val->rampath);
-	system(cmd);	
+	system(cmd);
 }
+
+/**
+ * @brief	将ram文件拷贝到disk（当主进程崩溃时子进程自动完成）
+ * @param	null
+ * @retval	null
+ * @remarks	
+ * @see	
+ */
+
 void _rl_ram2disk(struct ramlog *val)
 {
 	// return ;
@@ -162,14 +173,23 @@ void _rl_ram2disk(struct ramlog *val)
 	printf("val->curid %d\n", val->curid);
 }
 
-int _rl_ckdirsize(struct ramlog *val)
+/**
+ * @brief	如果日志目录过大则清除部分
+ * @param	null
+ * @retval	null
+ * @remarks	
+ * @see	
+ */
+
+int rl_dirlimitsize(struct ramlog *val, char *dir)
 {
 	char cmd[1024];
 	char str[32];
 	FILE *stream;
 	int dirsize;
 
-	snprintf(cmd, 1024, "du -b %s", val->diskpath);
+	snprintf(cmd, 1024, "du -b %s", dir);
+	printf("check dir %s\n", cmd);
 	stream = popen(cmd, "r");
 	if (stream == NULL) {
 		return 0;
@@ -180,14 +200,22 @@ int _rl_ckdirsize(struct ramlog *val)
 
 
 	dirsize = atoi(str);
-	printf("dirsize = %d s_total %ld\n", dirsize , val->s_total);
+	printf("dirsize = %d s_total %ld %s\n", dirsize , val->s_total, dir);
 	if (dirsize > val->s_total) {
-		_rl_rm_except_last(val);
+		_rl_rm_except_last(val, dir);
 	}
 	
-
 	return 0;
 }
+
+/**
+ * @brief	
+ * @param	null
+ * @retval	null
+ * @remarks	
+ * @see	
+ */
+
 int rl_init(struct ramlog *val,
             char *rampath, char *diskpath,
             int s_log, int s_total)
@@ -196,18 +224,18 @@ int rl_init(struct ramlog *val,
 
 
 	if (NULL == rampath) {
-		val->rampath     = def_rampath;
+		val->rampath     = (char*)def_rampath;
 	}
 	else {
-		val->rampath     = rampath;
+		val->rampath     = (char*)rampath;
 	}
 	if (NULL == diskpath) {
-		val->diskpath    = def_diskpath;
+		val->diskpath    = (char*)def_diskpath;
 	}
 	else {
-		val->diskpath    = diskpath;
+		val->diskpath    = (char*)diskpath;
 	}
-	val->prefix          = def_prefix;
+	val->prefix          = (char*)def_prefix;
 
 	if (s_log < 4 * _1K ) {
 		val->s_log        = 4 * _1K;
@@ -227,8 +255,9 @@ int rl_init(struct ramlog *val,
 	mkdir(val->diskpath, 777);
 
 	_rl_tm(val);
-	_rl_findlast(val);
-	_rl_ckdirsize(val);
+	_rl_rm_ram(val);
+	_rl_findlast(val, val->diskpath);
+	rl_dirlimitsize(val, val->diskpath);
 	
 	// printf("logid %d\n", val->curid);
 	
@@ -236,7 +265,7 @@ int rl_init(struct ramlog *val,
 	snprintf(val->name, 256, "%s/%s%s-%d", val->rampath, val->prefix, val->tm, val->curid);
 	printf("val->name %s\n" , val->name);
 
-	_rl_rm_ram(val);
+	
 	pid_t fpid = fork();
 	if (fpid < 0) {
 		perror("fork");
@@ -244,7 +273,7 @@ int rl_init(struct ramlog *val,
 	else if (fpid == 0) {
 		printf("child %d %d\n" , getpid(), getppid());
 		while (getppid() != 1) {
-			sleep(10);
+			sleep(1);
 		}
 		printf("get sig\n");
 		// TODO copy ramfs to disk
@@ -284,17 +313,8 @@ int rl_onefile(struct ramlog *val, char *str, int n)
 
 int rl_multifile(struct ramlog *val, char *str, int n)
 {
-	FILE *fd;
-	int  len;
 	int byte, offset = 0;
 
-
-	// if (val->s_cur >= val->s_log) {
-	// 	val->curid++;
-	// 	snprintf(val->name, 256, "%s/%s%s-%d", val->rampath, val->prefix, val->tm, val->curid);
-	// 	val->s_cur = rl_onefile(val, str + offset, n);
-	// }
-	// else
 	if (val->s_cur + n > val->s_log) {
 		byte = val->s_log - val->s_cur;
 		val->s_cur = rl_onefile(val, str, byte);
@@ -318,99 +338,22 @@ int rl_multifile(struct ramlog *val, char *str, int n)
 	else {
 		val->s_cur = rl_onefile(val, str, n);
 	}
-}
-
-#include <stdio.h>
-#include <sys/time.h>
-#include <stdio.h>
-#include <math.h>
-
-struct timeval tpstart, tpend;
-float timeuse;
-// 记录开始时间
-void ResetConst()
-{
-	gettimeofday(&tpstart, NULL);
-}
-// 打印从调用ResetConst到调用PrintCost之间代码运行时间
-float PrintCost()
-{
-
-	gettimeofday(&tpend, NULL);
-	timeuse = 1000000 * (tpend.tv_sec - tpstart.tv_sec) +
-	          tpend.tv_usec - tpstart.tv_usec;
-	timeuse /= 1000000;
-	printf("Used Time:%f\r\n", timeuse);
-	return timeuse;
-
+	return val->s_cur;
 }
 
 
-int main()
+
+#include <stdarg.h>
+int
+rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...)
 {
-	struct ramlog rl;
-	char data[10240];
+  va_list arg;
+  int done;
 
-	memset(data + 0 , '1', 1024);
-	memset(data + 1024 * 1, '2', 1024);
-	memset(data + 1024 * 2, '3', 1024);
-	memset(data + 1024 * 3, '4', 1024);
-	memset(data + 1024 * 4, '5', 1024);
-	memset(data + 1024 * 5, '6', 1024);
-	memset(data + 1024 * 6, '7', 1024);
-	memset(data + 1024 * 7, '8', 1024);
-	memset(data + 1024 * 8, '9', 1024);
-	memset(data + 1024 * 9, 'a', 1024);
+  va_start (arg, format);
+  done = vsnprintf (s, maxlen, format, arg);
+  va_end (arg);
 
-
-	rl_init(&rl, NULL, NULL, 0, 200* _1K);
-	ResetConst();
-
-#if 1
-	rl_multifile(&rl, (char *)&data[0], 10240);
-	rl_multifile(&rl, (char *)&data[0], 10240);
-	rl_multifile(&rl, (char *)&data[0], 10240);
-	rl_multifile(&rl, (char *)&data[0], 10240);
-#else
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-	rl_multifile(&rl, (char *)&data[0], 1024);
-
-
-#endif
-	PrintCost();
-	printf("father ready end\n");
-	// sleep(4);
-	printf("father end %d \n", rl.curid);
-
-	return 0;
+  rl_multifile(val, s, done);
+  return done;
 }

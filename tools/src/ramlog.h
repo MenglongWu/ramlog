@@ -1,3 +1,7 @@
+#ifndef _RAMLOG_H_
+
+#define _RAMLOG_H_
+
 #define MAX_LAST_LOG (4)
 
 struct ramlog {
@@ -18,3 +22,15 @@ struct ramlog {
 
 #define _1K (1024)
 #define _1M (1024*1024)
+
+
+int rl_dirlimitsize(struct ramlog *val, char *dir);
+int rl_init(struct ramlog *val,
+            char *rampath, char *diskpath,
+            int s_log, int s_total);
+int rl_onefile(struct ramlog *val, char *str, int n);
+int rl_multifile(struct ramlog *val, char *str, int n);
+
+
+int rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...);
+#endif
