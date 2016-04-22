@@ -8,55 +8,6 @@
 	\endcode
 */
 
-/*! \page Bug-20160413 Bug-20160413 initgpio.elf运行数小时崩溃
-
-	怀疑ckself.c，popen为做检查
-	\code {.cpp}
-	stream = popen(ptiem[i].dir, "r");
-	if (NULL == stream) {
-		continue;
-	}
-	\endcode
-
-	怀疑strout溢出
-	\code {.cpp}
-	ret = fread( strout, sizeof(char), sizeof(strout), stream);
-	strout[ret] = '\0';
-
-	// 改成
-	ret = fread( strout, sizeof(char), sizeof(strout) - 1, stream);
-	strout[ret] = '\0';	
- 	\endcode
-
-*/
-
-/*! \page Fix-20160414 Fix-20160414 Bug-20160413 opendir忘记关闭引起
-	- \subpage Bug-20160413
-
-	#日志在log-20160414.txt
-
-	程序运行未在崩溃，查看ls /proc/<pid>/fd发现打开1024个文件（达到系统上限），可想而知popen必定失败返回-1，紧接着fread也必定引发vfwprintf崩溃。
-
-	# 确定文件多久时间递增
-
-	watch -n 1 ls /proc/<pid>/fd
-
-	看到文件每隔15s新增一个文件id，代码每15秒调用TickStatusIO
-	\code {.cpp}
-	while(1) {
-		TickStatusIO();
-		sleep(15);
-	}
- 	\endcode
-
- 	屏蔽让ti_ck_mutil函数立马返回（不调用popen）问题依旧。
-
- 	最终确定在TickStatusIO()调用opendir后忘记关闭，代码补丁
-	
-	\code {.cpp}
-		ret = (int)(DIR*)opendir(checkdir[0].dir);
-	+   closedir(ret);
-	\endcode
 
 
 */

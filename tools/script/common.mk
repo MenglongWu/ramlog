@@ -1,6 +1,6 @@
 #################################################################
 # config your default value
-ARCH=armv7
+ARCH=x86
 
 
 ifeq ("$(ARCH)", "")
