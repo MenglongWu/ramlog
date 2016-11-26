@@ -1,0 +1,6 @@
+mainmenu "ramlog"
+
+config RAMLOG_DBG
+	bool "ramlog debug"
+
+

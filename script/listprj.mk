@@ -4,9 +4,11 @@
 #
 # pixxx=script/default
 # pixxx_arg=[all,mlib,elf...] one of us, [all, mlib,elf...] is top path Makefile operation
-	pi9=script/prj_log
-		pi9_arg=elf
+	pi9=script/libramlog
+		pi9_arg=mlib
+	pi10=script/test-speed
+		pi10_arg=elf
 		
 
 # default project item
-export DP=pi9
+export DP=pi10
