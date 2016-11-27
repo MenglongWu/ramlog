@@ -357,3 +357,204 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
   rl_multifile(val, s, done);
   return done;
 }
+
+
+// ***************************************
+// 默认进程内存大小8K
+// 管道代替内存文件系统
+// 默认
+
+
+// 分配共享内存
+void rl_mmap(struct ramlog *rl)
+{
+
+}
+
+void rl_unmap(struct ramlog *rl)
+{
+
+}
+#define _1K (1024)
+#define _1M (1024*_1K)
+
+static char *p;
+// 在main函数之前分配内存环境
+void __attribute__((constructor)) _rl_init()
+{
+	printf("malloc\n");
+	int size = _1M*33;
+	// 分配切填充内存
+	p = (char*)malloc(size);
+
+	for (int i = 0;i < size;i++) {
+		p = 0x03;
+	}
+	printf("fill \n");
+}
+
+// 创建克隆子进程
+void rl_clone()
+{
+	// 以共享内存方式创建子进程
+
+}
+
+/*
+1. 缓存末端dirty（大都数情况）
+UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUDDDDDDDDDDD
+^                               ^     ^         ^
+|                               |     |         |
+head                                           tail
+                               read  dirty        
+                               write              
+1) 写入read -- dirty内容
+2) 写入head -- read 内容
+
+
+2. 缓存内部没有dirty
+UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUFFFFFFF
+^                     ^                   ^     ^
+|                     |                   |     |
+head                                           tail
+                      read                     dirty
+                                         write   
+
+1) 写入read -- write内容
+2) 写入head -- read 内容
+
+
+写入后内存复位
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+^                                               ^
+|                                               |
+head                                           tail
+read                                           dirty
+write
+*/
+void rl_writefile()
+{
+
+}
+void sig_user(int v)
+{
+	// 根据信号参数执行
+	// 1. 拷贝日志到内存
+	// 2. 保存日志到文件系统
+}
+int _rl_sub_process()
+{
+
+	while(0) {
+		// 死循环等待子进程退出，循环间隔1s
+		// 当主进程退出后本进程同时退出
+	}
+	// todo释放所有共享资源，
+	// 日志保存到文件系统
+	// 删除日志文件系统的内容（暂时不能删除，调试要用）
+	// 控制日志文件系统的大小
+	
+	return 0;
+}
+
+// 写入到默认日志位置
+int rl_log(const char *format, ...)
+{
+	
+}
+
+// 写入到自定日志位置
+/*
+标记
+U 已经使用的内存
+F 空闲内存
+u 刚刚写入的新内容
+N 超出部分
+n 超出部分被重新写入
+D 脏内存
+
+1. 连续内存充足情况写入新内容
+------------------------------
+初始状态内存
+FFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFFF
+^                                               ^
+|                                               |
+head                                           tail
+read                                           dirty
+write
+
+写入后
+uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuFFFFFFFFFFF
+^                                     ^         ^
+|                                     |         |
+head                                           tail
+read                                 write     dirty
+        
+
+2. 写入新内容超过剩余连续容量
+-----------------------------
+写入前
+UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUFFFFFFFFFFF
+^                                     ^         ^
+|                                     |         |
+head                                           tail
+read                                 write     dirty
+
+空闲内存不足，此时wirte后的内容已经被修改不再是之前的内容'F'，
+超出部分是'N'的长度，'N'并没有真正写入，不会造成地址越界
+第一次写入后
+UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuuuNNNNNNNNNNN
+^                                     ^         ^          
+|                                     |         |          
+head                                           tail
+read                                 write        
+
+标记dirty后的内容无效
+写入位置换成head处重新写入
+第二次写入后
+uuuuuuuuuuunnnnnnnnnnnUUUUUUUUUUUUUUUUuuuuuuuuuuu
+^                     ^               ^         ^
+|                     |               |         |
+head                                           tail
+                      read           dirty          
+                      write                      
+值得注意的是，第二次就算再不够用也不会重新分配内存，write指向
+tail，日志缓存都是nK以上，而每次写入内容最多也就几百byte，这
+种能将缓存全部填满的情况是不应该出现的
+
+
+3. 存在dirty情况下写入新内容
+----------------------------
+写入前
+UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUDDDDDDDDDDD
+^                     ^               ^         ^
+|                     |               |         |
+head                                           tail
+                      read           dirty          
+
+写入少量内容，切不足以与dirty区域叠加
+UUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuUUUUUUDDDDDDDDDDD
+^                               ^     ^         ^
+|                               |     |         |
+head                                           tail
+                               read  dirty        
+                               write              
+写入内容与dirty区域叠加，dirty无效
+UUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuuuuuuuuuuuFFFFFFF
+^                     ^                   ^     ^
+|                     |                   |     |
+head                                           tail
+                      read                     dirty
+                                         write              
+                      
+*/
+int rl_log2(struct ramlog *rl, const char *format, ...)
+{
+	// 写入新内容到内存
+
+	// 连续空闲内存是否足够填充新的日志
+
+	// 不够则将日志写入点标记为 “脏” 从头开始填写
+}
+
+
