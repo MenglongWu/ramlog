@@ -18,6 +18,14 @@ struct ramlog {
 	unsigned long s_total;				///< 日志总大小，以byte为单位
 	unsigned long s_cur;
 
+
+	unsigned int size;
+	char *data;
+	char *head;
+	char *tail;
+	char *read;
+	char *write;
+	char *dirty;
 };
 
 #define _1K (1024)

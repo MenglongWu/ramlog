@@ -6,17 +6,23 @@
 #include <sys/stat.h>
 #include <sys/types.h>
 #include <unistd.h>
+
+#include <autoconfig.h>
 const char def_rampath  [] = "/dev/shm/log";
 const char def_diskpath  [] = "./log";
 const char def_prefix[] =  "log-";
 
 
 
-#ifdef _DEBUG
-	#define dbg(fmt, ...) printf(fmt, ##__VA_ARGS__)
+#ifdef CONFIG_RAMLOG_DBG
+	#define dbg(fmt, ...) printf("\e[36m" fmt "\e[0m", ##__VA_ARGS__)
 #else
 	#define dbg(fmt, ...)
 #endif
+#define TRRAC_TAG() \
+	dbg("%s: %s(): %d\n", __FILE__,__FUNCTION__,__LINE__)
+#define TRRAC_TAG_S(f,...) \
+	dbg("%s: %s(): %d: " f, __FILE__,__FUNCTION__,__LINE__,##__VA_ARGS__)
 
 /**
  * @brief	找到文件最新的“几个”文件
@@ -363,7 +369,10 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 // 默认进程内存大小8K
 // 管道代替内存文件系统
 // 默认
-
+#include <sched.h>
+#include <sys/mman.h>
+#include <errno.h>
+struct ramlog g_rl;
 
 // 分配共享内存
 void rl_mmap(struct ramlog *rl)
@@ -382,24 +391,52 @@ static char *p;
 // 在main函数之前分配内存环境
 void __attribute__((constructor)) _rl_init()
 {
-	printf("malloc\n");
-	int size = _1M*33;
-	// 分配切填充内存
-	p = (char*)malloc(size);
+	TRRAC_TAG();
 
-	for (int i = 0;i < size;i++) {
-		p = 0x03;
+	g_rl.size = _1K * 4;
+	// 分配切填充内存
+	p = (char*)malloc(g_rl.size + 1);
+
+	for (int i = 0; i < g_rl.size + 1; i++) {
+		p = 0x00;
 	}
-	printf("fill \n");
+	g_rl.head = g_rl.data;
+	g_rl.tail = g_rl.data + g_rl.size;
+	g_rl.read = g_rl.data;
+	g_rl.write = g_rl.data;
+	g_rl.dirty = g_rl.tail;
 }
+
+int _rl_sub_process(void *ptr);
+#define STACK_SIZE (_1K*10)
 
 // 创建克隆子进程
-void rl_clone()
+int rl_clone()
 {
-	// 以共享内存方式创建子进程
+	void *pstack = (void *)mmap(NULL,
+								STACK_SIZE,
+								PROT_READ | PROT_WRITE ,
+								MAP_PRIVATE | MAP_ANONYMOUS | MAP_ANON ,//| MAP_GROWSDOWN ,
+								-1,
+								0);
+	pid_t pid;
 
+	if (MAP_FAILED != pstack) {
+
+		// 以共享内存方式创建子进程
+		pid = clone(
+				  _rl_sub_process,
+				  (void*)((unsigned char*)pstack + STACK_SIZE),
+				  CLONE_VM,
+				  &g_rl);
+		if (-1 != pid) {
+			TRRAC_TAG_S("clone pid %d\n", pid);
+		} else {
+			TRRAC_TAG_S("clone fail: %s\n", strerror(errno));
+		}
+	}
+	return -1;
 }
-
 /*
 1. 缓存末端dirty（大都数情况）
 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUDDDDDDDDDDD
@@ -442,18 +479,29 @@ void sig_user(int v)
 	// 1. 拷贝日志到内存
 	// 2. 保存日志到文件系统
 }
-int _rl_sub_process()
-{
 
-	while(0) {
+#include <unistd.h>
+#include <sys/syscall.h>
+#include <sys/types.h>
+int _rl_sub_process(void *ptr)
+{
+	struct ramlog *p = (struct ramlog *)ptr;
+
+	TRRAC_TAG_S("ppid %d pid %d\n", getppid(), getpid());
+	while(getppid() != 1) {
 		// 死循环等待子进程退出，循环间隔1s
 		// 当主进程退出后本进程同时退出
+		sleep(1);
 	}
+	sleep(2);
+	TRRAC_TAG_S("parent exit\n");
 	// todo释放所有共享资源，
 	// 日志保存到文件系统
+	TRRAC_TAG_S("save log\n");
 	// 删除日志文件系统的内容（暂时不能删除，调试要用）
 	// 控制日志文件系统的大小
-	
+	TRRAC_TAG_S("conpress log\n");
+	puts("\e[0m");
 	return 0;
 }
 
