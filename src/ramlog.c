@@ -376,6 +376,7 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 #include <sys/mman.h>
 #include <errno.h>
 #include <assert.h>
+#include <stdbool.h>
 struct ramlog g_rl;
 
 // 分配共享内存
@@ -420,10 +421,11 @@ void __attribute__((constructor)) _rl_init()
 	}
 	bzero(g_rl.data, g_rl.size + 1);
 	_rl_reset(&g_rl);
+	g_rl.prefix = "log-";
 }
 
 int _rl_sub_process(void *ptr);
-#define STACK_SIZE (_1K*10)
+#define STACK_SIZE (_1K*12)
 
 // 创建克隆子进程
 int rl_clone()
@@ -451,6 +453,18 @@ int rl_clone()
 		}
 	}
 	return -1;
+}
+
+// 检查日志目录下的容量是否到极限
+static bool _rl_diskpoor(struct ramlog *rl)
+{
+	return false;
+}
+
+static int _rl_compress(struct ramlog *rl)
+{
+	// 压缩所有log
+	return 0;
 }
 /*
 1. 缓存末端dirty（大都数情况）
@@ -486,12 +500,12 @@ write
 */
 void rl_writefile(struct ramlog *rl)
 {
-	// assert(rl != NULL);
-	// assert(rl->size != NULL);
-	// assert(rl->data != NULL);
-	// assert(rl->head == rl->data);
-	// assert(rl->tail == rl->data + rl->size);
-	// assert(rl->dirty <= rl->tail);
+	assert(rl != NULL);
+	assert(rl->size != NULL);
+	assert(rl->data != NULL);
+	assert(rl->head == rl->data);
+	assert(rl->tail == rl->data + rl->size);
+	assert(rl->dirty <= rl->tail);
 
 	TRRAC_TAG_S("head %x tail %x size %d\n", rl->head, rl->tail, rl->size);
 	TRRAC_TAG_S("read %x(%d) write %x(%d) dirty %x(%d)\n", 
@@ -499,13 +513,23 @@ void rl_writefile(struct ramlog *rl)
 		rl->write,rl->write - rl->head,
 		rl->dirty,rl->dirty - rl->head);
 
-	if (rl->dirty != rl->tail) {
-		dbg("read -- dirty  %s\n", rl->read + 1);
-		dbg("head -- read  %s\n", rl->head);
+	FILE *fp = fopen(rl->prefix,"wb");
+	int ret;
+	if (fp == NULL) {
+		return ;
+	}
+	if (likely(rl->dirty != rl->tail)) {
+		dbg("read -- dirty  %0.200s\n", rl->read + 1);
+		dbg("head -- read  %0.200s\n", rl->head);
+		fprintf(fp,"%s", rl->read + 1);
+		fprintf(fp,"%s", rl->head);
+		
 	}
 	else {
-		dbg("head -- read  %s\n", rl->head);	
+		dbg("head -- read  %0.200s\n", rl->head);
+		fprintf(fp,"%s",rl->head);
 	}
+	fclose(fp);
 }
 void sig_user(int v)
 {
@@ -526,6 +550,13 @@ int _rl_sub_process(void *ptr)
 		// 死循环等待子进程退出，循环间隔1s
 		// 当主进程退出后本进程同时退出
 		sleep(1);
+	}
+
+	// 检查是否需要多当前日志目录进行压缩
+	if (!_rl_diskpoor(&g_rl)) {
+		if (_rl_compress(&g_rl)) {
+
+		}
 	}
 	rl_writefile(&g_rl);
 	TRRAC_TAG_S("parent exit\n");
@@ -670,7 +701,7 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 
 
 	// 连续空闲内存是否足够填充新的日志
-	printf("done %d free %d\n", done, rl->tail - rl->write);
+	// printf("done %d free %d\n", done, rl->tail - rl->write);
 	if (likely(rl->dirty <= rl->tail)) {
 		if (done < rl->tail - rl->write) {
 			rl->write += done;
