@@ -3,4 +3,7 @@ mainmenu "ramlog"
 config RAMLOG_DBG
 	bool "ramlog debug"
 
+config RAMLOG_100BYTE_CACHE
+	bool "only have 100byte"
+	depends on RAMLOG_DBG
 

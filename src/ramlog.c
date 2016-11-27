@@ -369,9 +369,13 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 // 默认进程内存大小8K
 // 管道代替内存文件系统
 // 默认
+#define  likely(x)        __builtin_expect(!!(x), 1) 
+#define  unlikely(x)      __builtin_expect(!!(x), 0) 
+
 #include <sched.h>
 #include <sys/mman.h>
 #include <errno.h>
+#include <assert.h>
 struct ramlog g_rl;
 
 // 分配共享内存
@@ -384,6 +388,16 @@ void rl_unmap(struct ramlog *rl)
 {
 
 }
+
+static void _rl_reset(struct ramlog *rl)
+{
+	rl->head = rl->data;
+	rl->tail = rl->data + rl->size;
+	rl->read = rl->data;
+	rl->write = rl->data;
+	rl->dirty = rl->tail;
+	rl->offset = 0;
+}
 #define _1K (1024)
 #define _1M (1024*_1K)
 
@@ -392,19 +406,20 @@ static char *p;
 void __attribute__((constructor)) _rl_init()
 {
 	TRRAC_TAG();
-
+#ifdef CONFIG_RAMLOG_100BYTE_CACHE
+	g_rl.size = 100;
+#else 
 	g_rl.size = _1K * 4;
+#endif
+	TRRAC_TAG_S("cache size %d\n", g_rl.size);
 	// 分配切填充内存
-	p = (char*)malloc(g_rl.size + 1);
-
-	for (int i = 0; i < g_rl.size + 1; i++) {
-		p = 0x00;
+	g_rl.data = (char*)malloc(g_rl.size + 1);// 多出的一个字节为安全
+	if (g_rl.data == NULL) {
+		printf("%s: %s(): %d %s\n", __FILE__,__FUNCTION__,__LINE__, strerror(errno));
+		exit(1);
 	}
-	g_rl.head = g_rl.data;
-	g_rl.tail = g_rl.data + g_rl.size;
-	g_rl.read = g_rl.data;
-	g_rl.write = g_rl.data;
-	g_rl.dirty = g_rl.tail;
+	bzero(g_rl.data, g_rl.size + 1);
+	_rl_reset(&g_rl);
 }
 
 int _rl_sub_process(void *ptr);
@@ -451,10 +466,10 @@ head                                           tail
 
 2. 缓存内部没有dirty
 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUFFFFFFF
-^                     ^                   ^     ^
-|                     |                   |     |
+^                                         ^     ^
+|                                         |     |
 head                                           tail
-                      read                     dirty
+                                         read  dirty
                                          write   
 
 1) 写入read -- write内容
@@ -469,9 +484,28 @@ head                                           tail
 read                                           dirty
 write
 */
-void rl_writefile()
+void rl_writefile(struct ramlog *rl)
 {
+	// assert(rl != NULL);
+	// assert(rl->size != NULL);
+	// assert(rl->data != NULL);
+	// assert(rl->head == rl->data);
+	// assert(rl->tail == rl->data + rl->size);
+	// assert(rl->dirty <= rl->tail);
 
+	TRRAC_TAG_S("head %x tail %x size %d\n", rl->head, rl->tail, rl->size);
+	TRRAC_TAG_S("read %x(%d) write %x(%d) dirty %x(%d)\n", 
+		rl->read,rl->read- rl->head,
+		rl->write,rl->write - rl->head,
+		rl->dirty,rl->dirty - rl->head);
+
+	if (rl->dirty != rl->tail) {
+		dbg("read -- dirty  %s\n", rl->read + 1);
+		dbg("head -- read  %s\n", rl->head);
+	}
+	else {
+		dbg("head -- read  %s\n", rl->head);	
+	}
 }
 void sig_user(int v)
 {
@@ -483,17 +517,17 @@ void sig_user(int v)
 #include <unistd.h>
 #include <sys/syscall.h>
 #include <sys/types.h>
+
 int _rl_sub_process(void *ptr)
 {
 	struct ramlog *p = (struct ramlog *)ptr;
-
 	TRRAC_TAG_S("ppid %d pid %d\n", getppid(), getpid());
 	while(getppid() != 1) {
 		// 死循环等待子进程退出，循环间隔1s
 		// 当主进程退出后本进程同时退出
 		sleep(1);
 	}
-	sleep(2);
+	rl_writefile(&g_rl);
 	TRRAC_TAG_S("parent exit\n");
 	// todo释放所有共享资源，
 	// 日志保存到文件系统
@@ -579,6 +613,7 @@ UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUDDDDDDDDDDD
 |                     |               |         |
 head                                           tail
                       read           dirty          
+                      write
 
 写入少量内容，切不足以与dirty区域叠加
 UUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuUUUUUUDDDDDDDDDDD
@@ -589,20 +624,106 @@ head                                           tail
                                write              
 写入内容与dirty区域叠加，dirty无效
 UUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuuuuuuuuuuuFFFFFFF
-^                     ^                   ^     ^
-|                     |                   |     |
+^                                         ^     ^
+|                                         |     |
 head                                           tail
-                      read                     dirty
+                                         read  dirty
                                          write              
                       
 */
+
+
+
 int rl_log2(struct ramlog *rl, const char *format, ...)
 {
+	// todo LOCK
+	assert(rl != NULL);
+	assert(rl->size != NULL);
+	assert(rl->data != NULL);
+	assert(rl->head == rl->data);
+	assert(rl->tail == rl->data + rl->size);
+	assert(rl->dirty <= rl->tail);
+
+
+	
+	
 	// 写入新内容到内存
+	va_list arg;
+	int done;
+
+	if (rl->dirty < rl->tail) {
+
+	}
+	else if (rl->dirty > rl->tail) { // 不可能
+		_rl_reset(rl);
+	}
+	va_start (arg, format);
+	done = vsnprintf (
+			   rl->write,
+			   rl->tail - rl->write,
+			   format,
+			   arg);
+	va_end (arg);
+	// printf("done rl->data %x %d\n", rl->data, done);
+	
+
+
 
 	// 连续空闲内存是否足够填充新的日志
-
-	// 不够则将日志写入点标记为 “脏” 从头开始填写
+	printf("done %d free %d\n", done, rl->tail - rl->write);
+	if (likely(rl->dirty <= rl->tail)) {
+		if (done < rl->tail - rl->write) {
+			rl->write += done;
+			rl->read = rl->write;
+			if (rl->write >= rl->dirty) {
+				rl->dirty = rl->tail;
+			}
+		} else {
+			rl->dirty = rl->write;
+			va_start (arg, format);
+			done = vsnprintf (
+					   rl->data,
+					   rl->size,
+					   format,
+					   arg);
+			va_end (arg);
+			if (done < rl->size) {
+				rl->write = rl->data + done;
+				rl->read = rl->write;
+			}
+			else {
+				printf("-----------too much\n");
+				_rl_reset(rl);
+			}
+		}
+	} else { 
+		if (done < rl->tail - rl->write) {
+			rl->write += done;
+		} else {
+			// 不够则将日志写入点标记为 “脏” 从头开始填写
+			rl->dirty = rl->write;
+			*rl->dirty = '\0';
+			va_start (arg, format);
+			done = vsnprintf (
+					   rl->data,
+					   rl->size,
+					   format,
+					   arg);
+			va_end (arg);
+			if (done < rl->size) {
+				rl->write = rl->data + done;
+				rl->read = rl->write;
+			}
+			else {
+				printf("-----------too much\n");
+				_rl_reset(rl);
+			}
+		}
+	}
+	
+	// rl_writefile(rl);
+	
+	// TODO unlock
 }
 
 

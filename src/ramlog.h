@@ -26,8 +26,11 @@ struct ramlog {
 	char *read;
 	char *write;
 	char *dirty;
-};
 
+	// unsigned int free;
+	unsigned int offset;
+};
+extern struct ramlog g_rl;
 #define _1K (1024)
 #define _1M (1024*1024)
 

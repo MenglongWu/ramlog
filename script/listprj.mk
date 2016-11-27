@@ -8,7 +8,9 @@
 		pi9_arg=mlib
 	pi10=script/test-speed
 		pi10_arg=elf
+	pi11=script/test-dump
+		pi11_arg=elf
 		
 
 # default project item
-export DP=pi10
+export DP=pi11
