@@ -21,8 +21,8 @@ const char def_prefix[] =  "log-";
 #endif
 #define TRRAC_TAG() \
 	dbg("%s: %s(): %d\n", __FILE__,__FUNCTION__,__LINE__)
-#define TRRAC_TAG_S(f,...) \
-	dbg("%s: %s(): %d: " f, __FILE__,__FUNCTION__,__LINE__,##__VA_ARGS__)
+#define TRRAC_TAG_S(fmt,...) \
+	dbg("%s: %s(): %d: " fmt, __FILE__,__FUNCTION__,__LINE__,##__VA_ARGS__)
 
 /**
  * @brief	找到文件最新的“几个”文件
@@ -552,21 +552,25 @@ int _rl_sub_process(void *ptr)
 		sleep(1);
 	}
 
+	// 控制日志文件系统的大小
 	// 检查是否需要多当前日志目录进行压缩
-	if (!_rl_diskpoor(&g_rl)) {
+	if (_rl_diskpoor(&g_rl)) {
 		if (_rl_compress(&g_rl)) {
 
 		}
 	}
-	rl_writefile(&g_rl);
+	dbg("\n");
 	TRRAC_TAG_S("parent exit\n");
 	// todo释放所有共享资源，
+	TRRAC_TAG_S("compress log\n");
+
 	// 日志保存到文件系统
 	TRRAC_TAG_S("save log\n");
+	rl_writefile(&g_rl);
 	// 删除日志文件系统的内容（暂时不能删除，调试要用）
-	// 控制日志文件系统的大小
-	TRRAC_TAG_S("conpress log\n");
-	puts("\e[0m");
+	
+	
+	puts("\n");
 	return 0;
 }
 
@@ -702,14 +706,15 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 
 	// 连续空闲内存是否足够填充新的日志
 	// printf("done %d free %d\n", done, rl->tail - rl->write);
-	if (likely(rl->dirty <= rl->tail)) {
-		if (done < rl->tail - rl->write) {
+	if ( likely(rl->dirty <= rl->tail)){
+		if ( likely(done < rl->tail - rl->write)) {
 			rl->write += done;
 			rl->read = rl->write;
 			if (rl->write >= rl->dirty) {
 				rl->dirty = rl->tail;
 			}
 		} else {
+			*rl->write = '\0';// 设置字符串结束
 			rl->dirty = rl->write;
 			va_start (arg, format);
 			done = vsnprintf (
@@ -718,17 +723,17 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 					   format,
 					   arg);
 			va_end (arg);
-			if (done < rl->size) {
+			if ( likely(done < rl->size) ) {
 				rl->write = rl->data + done;
 				rl->read = rl->write;
 			}
 			else {
-				printf("-----------too much\n");
+				printf("warning: ramlog cache too small\n");
 				_rl_reset(rl);
 			}
 		}
 	} else { 
-		if (done < rl->tail - rl->write) {
+		if ( likely(done < rl->tail - rl->write) ) {
 			rl->write += done;
 		} else {
 			// 不够则将日志写入点标记为 “脏” 从头开始填写
@@ -741,18 +746,20 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 					   format,
 					   arg);
 			va_end (arg);
-			if (done < rl->size) {
+			if ( likely(done < rl->size) ) {
 				rl->write = rl->data + done;
 				rl->read = rl->write;
 			}
 			else {
-				printf("-----------too much\n");
+				printf("warning: ramlog cache too small\n");
 				_rl_reset(rl);
 			}
 		}
 	}
-	
-	// rl_writefile(rl);
+
+#ifdef CONFIG_RAMLOG_100BYTE_CACHE	
+	rl_writefile(rl);
+#endif
 	
 	// TODO unlock
 }
