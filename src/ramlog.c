@@ -8,9 +8,9 @@
 #include <unistd.h>
 
 #include <autoconfig.h>
-const char def_rampath  [] = "/dev/shm/log";
-const char def_diskpath  [] = "./log";
-const char def_prefix[] =  "log-";
+#define DEF_RAMPATH  "/dev/shm/log"
+#define DEF_DISKPATH  "./log/a/b"
+#define DEF_PREFIX "log-"
 
 
 
@@ -86,7 +86,7 @@ int _rl_findlast(struct ramlog *val, char *dir)
 		// dbg("[%s] [%s] id = %d\n", cmd, filter, val->last_id[i]);
 		int len;
 		len = strlen(val->last_id[i]);
-		val->last_id[i][len-1] = '\0';
+		val->last_id[i][len - 1] = '\0';
 		dbg("[%s]\n", val->last_id[i]);
 	}
 	printf("i = %d\n", i);
@@ -120,11 +120,10 @@ int _rl_rm_except_last(struct ramlog *val, char *dir)
 				strcat(filelist, "\\|");
 			}
 			strcat(filelist, val->last_id[i]);
+		} else {
+			break;
 		}
-		else {
-			break;	
-		}
-		
+
 	}
 	// 在日志目录下搜索所有日志文件，并以时间排序
 	snprintf(cmd, 1024,
@@ -145,14 +144,14 @@ void _rl_tm(struct ramlog *val)
 
 	t = time(NULL);
 	local = localtime(&t); //转为本地时间
-	strftime(val->tm, 20, "%Y%m%d-%H-%M-%S", local);
+	strftime(val->tm, 20, "%Y%m%d-%H-%M", local);
 }
 /**
  * @brief	清除所有ram文件
  * @param	null
  * @retval	null
- * @remarks	
- * @see	
+ * @remarks
+ * @see
  */
 
 void _rl_rm_ram(struct ramlog *val)
@@ -166,8 +165,8 @@ void _rl_rm_ram(struct ramlog *val)
  * @brief	将ram文件拷贝到disk（当主进程崩溃时子进程自动完成）
  * @param	null
  * @retval	null
- * @remarks	
- * @see	
+ * @remarks
+ * @see
  */
 
 void _rl_ram2disk(struct ramlog *val)
@@ -183,8 +182,8 @@ void _rl_ram2disk(struct ramlog *val)
  * @brief	如果日志目录过大则清除部分
  * @param	null
  * @retval	null
- * @remarks	
- * @see	
+ * @remarks
+ * @see
  */
 
 int rl_dirlimitsize(struct ramlog *val, char *dir)
@@ -210,16 +209,16 @@ int rl_dirlimitsize(struct ramlog *val, char *dir)
 	if (dirsize > val->s_total) {
 		_rl_rm_except_last(val, dir);
 	}
-	
+
 	return 0;
 }
 
 /**
- * @brief	
+ * @brief
  * @param	null
  * @retval	null
- * @remarks	
- * @see	
+ * @remarks
+ * @see
  */
 
 int rl_init(struct ramlog *val,
@@ -230,29 +229,25 @@ int rl_init(struct ramlog *val,
 
 
 	if (NULL == rampath) {
-		val->rampath     = (char*)def_rampath;
-	}
-	else {
-		val->rampath     = (char*)rampath;
+		val->rampath     = (char *)DEF_RAMPATH;
+	} else {
+		val->rampath     = (char *)rampath;
 	}
 	if (NULL == diskpath) {
-		val->diskpath    = (char*)def_diskpath;
+		val->diskpath    = (char *)DEF_DISKPATH;
+	} else {
+		val->diskpath    = (char *)diskpath;
 	}
-	else {
-		val->diskpath    = (char*)diskpath;
-	}
-	val->prefix          = (char*)def_prefix;
+	val->prefix          = (char *)DEF_PREFIX;
 
 	if (s_log < 4 * _1K ) {
 		val->s_log        = 4 * _1K;
-	}
-	else {
+	} else {
 		val->s_log	= s_log;
 	}
 	if (s_total < val->s_log * MAX_LAST_LOG) {
 		val->s_total = 4 * _1K * MAX_LAST_LOG;
-	}
-	else {
+	} else {
 		val->s_total = s_total;
 	}
 
@@ -264,19 +259,18 @@ int rl_init(struct ramlog *val,
 	_rl_rm_ram(val);
 	_rl_findlast(val, val->diskpath);
 	rl_dirlimitsize(val, val->diskpath);
-	
+
 	// printf("logid %d\n", val->curid);
-	
+
 	val->curid = 0;
 	snprintf(val->name, 256, "%s/%s%s-%d", val->rampath, val->prefix, val->tm, val->curid);
 	printf("val->name %s\n" , val->name);
 
-	
+
 	pid_t fpid = fork();
 	if (fpid < 0) {
 		perror("fork");
-	}
-	else if (fpid == 0) {
+	} else if (fpid == 0) {
 		printf("child %d %d\n" , getpid(), getppid());
 		while (getppid() != 1) {
 			sleep(1);
@@ -329,8 +323,7 @@ int rl_multifile(struct ramlog *val, char *str, int n)
 		while(n > 0) {
 			if (n > val->s_log) {
 				byte = val->s_log;
-			}
-			else {
+			} else {
 				byte = n;
 			}
 			val->curid++;
@@ -340,8 +333,7 @@ int rl_multifile(struct ramlog *val, char *str, int n)
 			offset += byte;
 			n -= byte;
 		}
-	}
-	else {
+	} else {
 		val->s_cur = rl_onefile(val, str, n);
 	}
 	return val->s_cur;
@@ -353,15 +345,15 @@ int rl_multifile(struct ramlog *val, char *str, int n)
 int
 rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...)
 {
-  va_list arg;
-  int done;
+	va_list arg;
+	int done;
 
-  va_start (arg, format);
-  done = vsnprintf (s, maxlen, format, arg);
-  va_end (arg);
+	va_start (arg, format);
+	done = vsnprintf (s, maxlen, format, arg);
+	va_end (arg);
 
-  rl_multifile(val, s, done);
-  return done;
+	rl_multifile(val, s, done);
+	return done;
 }
 
 
@@ -369,14 +361,15 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 // 默认进程内存大小8K
 // 管道代替内存文件系统
 // 默认
-#define  likely(x)        __builtin_expect(!!(x), 1) 
-#define  unlikely(x)      __builtin_expect(!!(x), 0) 
+#define  likely(x)        __builtin_expect(!!(x), 1)
+#define  unlikely(x)      __builtin_expect(!!(x), 0)
 
 #include <sched.h>
 #include <sys/mman.h>
 #include <errno.h>
 #include <assert.h>
 #include <stdbool.h>
+#include "bb.h"
 struct ramlog g_rl;
 
 // 分配共享内存
@@ -392,38 +385,91 @@ void rl_unmap(struct ramlog *rl)
 
 static void _rl_reset(struct ramlog *rl)
 {
-	rl->head = rl->data;
-	rl->tail = rl->data + rl->size;
-	rl->read = rl->data;
+	rl->head  = rl->data;
+	rl->tail  = rl->data + rl->size;
+	rl->read  = rl->data;
 	rl->write = rl->data;
 	rl->dirty = rl->tail;
 	rl->offset = 0;
+	rl->curid  = 0;
 }
 #define _1K (1024)
 #define _1M (1024*_1K)
 
-static char *p;
+
 // 在main函数之前分配内存环境
 void __attribute__((constructor)) _rl_init()
 {
 	TRRAC_TAG();
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
 	g_rl.size = 100;
-#else 
-	g_rl.size = _1K * 4;
+#else
+	g_rl.size = _1K * 64;
 #endif
 	TRRAC_TAG_S("cache size %d\n", g_rl.size);
 	// 分配切填充内存
-	g_rl.data = (char*)malloc(g_rl.size + 1);// 多出的一个字节为安全
+	g_rl.data = (char *)malloc(g_rl.size + 1); // 多出的一个字节为安全
 	if (g_rl.data == NULL) {
-		printf("%s: %s(): %d %s\n", __FILE__,__FUNCTION__,__LINE__, strerror(errno));
+		printf("%s: %s(): %d %s\n", __FILE__, __FUNCTION__, __LINE__, strerror(errno));
 		exit(1);
 	}
 	bzero(g_rl.data, g_rl.size + 1);
+
+	g_rl.diskpath = (char *)malloc(strlen(DEF_DISKPATH) + 1);
+	g_rl.prefix   = (char *)malloc(strlen(DEF_PREFIX) + 1);
+	g_rl.filename = (char *)malloc(MAX_PATH);
+	if (g_rl.diskpath == NULL || g_rl.prefix == NULL  || g_rl.filename == NULL) {
+		goto err;
+	}
+	strcpy(g_rl.diskpath, DEF_DISKPATH);
+	bzero(g_rl.filename, MAX_PATH);
 	_rl_reset(&g_rl);
-	g_rl.prefix = "log-";
+	return ;
+err:
+	if (g_rl.diskpath) {
+		free(g_rl.diskpath);
+	}
+	if (g_rl.prefix) {
+		free(g_rl.prefix);
+	}
+	if (g_rl.filename	) {
+		free(g_rl.filename);
+	}
+	g_rl.diskpath = NULL;
+	g_rl.prefix   = NULL;
+	g_rl.filename = NULL;
 }
 
+int _rl_repath(char **oldstr, char *newstr)
+{
+	free(*oldstr);
+	*oldstr = NULL;
+
+	*oldstr = (char *)malloc(strlen(newstr) + 1);
+	if (*oldstr == NULL) {
+		printf("%s: %s(): %d %s\n", __FILE__, __FUNCTION__, __LINE__, strerror(errno));
+		exit(1);
+	}
+	strcpy(*oldstr, newstr);
+	return 0;
+}
+// 重命名前缀
+int rl_prefix(struct ramlog *rl, char *newprefix)
+{
+	assert(rl != NULL);
+	assert(rl->prefix != NULL);
+	assert(newprefix != NULL);
+	return _rl_repath(&rl->prefix, newprefix);
+}
+
+// 重命名路径
+int rl_path(struct ramlog *rl, char *newdiskpath)
+{
+	assert(rl != NULL);
+	assert(rl->diskpath != NULL);
+	assert(newdiskpath != NULL);
+	return _rl_repath(&rl->diskpath, newdiskpath);
+}
 int _rl_sub_process(void *ptr);
 #define STACK_SIZE (_1K*12)
 
@@ -431,21 +477,21 @@ int _rl_sub_process(void *ptr);
 int rl_clone()
 {
 	void *pstack = (void *)mmap(NULL,
-								STACK_SIZE,
-								PROT_READ | PROT_WRITE ,
-								MAP_PRIVATE | MAP_ANONYMOUS | MAP_ANON ,//| MAP_GROWSDOWN ,
-								-1,
-								0);
+	                            STACK_SIZE,
+	                            PROT_READ | PROT_WRITE ,
+	                            MAP_PRIVATE | MAP_ANONYMOUS | MAP_ANON ,//| MAP_GROWSDOWN ,
+	                            -1,
+	                            0);
 	pid_t pid;
 
 	if (MAP_FAILED != pstack) {
 
 		// 以共享内存方式创建子进程
 		pid = clone(
-				  _rl_sub_process,
-				  (void*)((unsigned char*)pstack + STACK_SIZE),
-				  CLONE_VM,
-				  &g_rl);
+		          _rl_sub_process,
+		          (void *)((unsigned char *)pstack + STACK_SIZE),
+		          CLONE_VM,
+		          &g_rl);
 		if (-1 != pid) {
 			TRRAC_TAG_S("clone pid %d\n", pid);
 		} else {
@@ -466,14 +512,22 @@ static int _rl_compress(struct ramlog *rl)
 	// 压缩所有log
 	return 0;
 }
+
+void _rl_mkdir(struct ramlog *rl)
+{
+	char strout[256];
+	snprintf(strout, 256, "%s", rl->diskpath);
+	printf("mkdir %s", strout);
+	bb_make_directory(strout, 0777,  FILEUTILS_RECUR);
+}
 /*
 1. 缓存末端dirty（大都数情况）
 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUDDDDDDDDDDD
 ^                               ^     ^         ^
 |                               |     |         |
 head                                           tail
-                               read  dirty        
-                               write              
+                               read  dirty
+                               write
 1) 写入read -- dirty内容
 2) 写入head -- read 内容
 
@@ -484,7 +538,7 @@ UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUFFFFFFF
 |                                         |     |
 head                                           tail
                                          read  dirty
-                                         write   
+                                         write
 
 1) 写入read -- write内容
 2) 写入head -- read 内容
@@ -508,12 +562,18 @@ void rl_writefile(struct ramlog *rl)
 	assert(rl->dirty <= rl->tail);
 
 	TRRAC_TAG_S("head %x tail %x size %d\n", rl->head, rl->tail, rl->size);
-	TRRAC_TAG_S("read %x(%d) write %x(%d) dirty %x(%d)\n", 
-		rl->read,rl->read- rl->head,
-		rl->write,rl->write - rl->head,
-		rl->dirty,rl->dirty - rl->head);
+	TRRAC_TAG_S("read %x(%d) write %x(%d) dirty %x(%d)\n",
+	            rl->read, rl->read - rl->head,
+	            rl->write, rl->write - rl->head,
+	            rl->dirty, rl->dirty - rl->head);
+	_rl_tm(rl);
+	_rl_mkdir(&g_rl);
 
-	FILE *fp = fopen(rl->prefix,"wb");
+
+	static int index = 0;
+	snprintf(rl->filename, MAX_PATH, "%s/%s%s-%d", rl->diskpath, rl->prefix, rl->tm, index);
+
+	FILE *fp = fopen(rl->filename, "wb");
 	int ret;
 	if (fp == NULL) {
 		return ;
@@ -521,16 +581,42 @@ void rl_writefile(struct ramlog *rl)
 	if (likely(rl->dirty != rl->tail)) {
 		dbg("read -- dirty  %0.200s\n", rl->read + 1);
 		dbg("head -- read  %0.200s\n", rl->head);
-		fprintf(fp,"%s", rl->read + 1);
-		fprintf(fp,"%s", rl->head);
-		
-	}
-	else {
+		fprintf(fp, "%s", rl->read + 1);
+		fprintf(fp, "%s", rl->head);
+
+	} else {
 		dbg("head -- read  %0.200s\n", rl->head);
-		fprintf(fp,"%s",rl->head);
+		fprintf(fp, "%s", rl->head);
 	}
 	fclose(fp);
+	_rl_reset(rl);
+	index++;
 }
+#ifdef CONFIG_RAMLOG_100BYTE_CACHE
+void _dbg_disp(struct ramlog *rl)
+{
+	assert(rl != NULL);
+	assert(rl->size != NULL);
+	assert(rl->data != NULL);
+	assert(rl->head == rl->data);
+	assert(rl->tail == rl->data + rl->size);
+	assert(rl->dirty <= rl->tail);
+
+	TRRAC_TAG_S("head %x tail %x size %d\n", rl->head, rl->tail, rl->size);
+	TRRAC_TAG_S("read %x(%d) write %x(%d) dirty %x(%d)\n",
+	            rl->read, rl->read - rl->head,
+	            rl->write, rl->write - rl->head,
+	            rl->dirty, rl->dirty - rl->head);
+	if (likely(rl->dirty != rl->tail)) {
+		dbg("read -- dirty  %0.200s\n", rl->read + 1);
+		dbg("head -- read  %0.200s\n", rl->head);
+	} else {
+		dbg("head -- read  %0.200s\n", rl->head);
+	}
+}
+#else
+#define _dbg_disp(v)
+#endif
 void sig_user(int v)
 {
 	// 根据信号参数执行
@@ -568,8 +654,8 @@ int _rl_sub_process(void *ptr)
 	TRRAC_TAG_S("save log\n");
 	rl_writefile(&g_rl);
 	// 删除日志文件系统的内容（暂时不能删除，调试要用）
-	
-	
+
+
 	puts("\n");
 	return 0;
 }
@@ -577,7 +663,7 @@ int _rl_sub_process(void *ptr)
 // 写入到默认日志位置
 int rl_log(const char *format, ...)
 {
-	
+
 }
 
 // 写入到自定日志位置
@@ -606,7 +692,7 @@ uuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuuFFFFFFFFFFF
 |                                     |         |
 head                                           tail
 read                                 write     dirty
-        
+
 
 2. 写入新内容超过剩余连续容量
 -----------------------------
@@ -621,10 +707,10 @@ read                                 write     dirty
 超出部分是'N'的长度，'N'并没有真正写入，不会造成地址越界
 第一次写入后
 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuuuNNNNNNNNNNN
-^                                     ^         ^          
-|                                     |         |          
+^                                     ^         ^
+|                                     |         |
 head                                           tail
-read                                 write        
+read                                 write
 
 标记dirty后的内容无效
 写入位置换成head处重新写入
@@ -633,8 +719,8 @@ uuuuuuuuuuunnnnnnnnnnnUUUUUUUUUUUUUUUUuuuuuuuuuuu
 ^                     ^               ^         ^
 |                     |               |         |
 head                                           tail
-                      read           dirty          
-                      write                      
+                      read           dirty
+                      write
 值得注意的是，第二次就算再不够用也不会重新分配内存，write指向
 tail，日志缓存都是nK以上，而每次写入内容最多也就几百byte，这
 种能将缓存全部填满的情况是不应该出现的
@@ -647,7 +733,7 @@ UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUDDDDDDDDDDD
 ^                     ^               ^         ^
 |                     |               |         |
 head                                           tail
-                      read           dirty          
+                      read           dirty
                       write
 
 写入少量内容，切不足以与dirty区域叠加
@@ -655,16 +741,16 @@ UUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuUUUUUUDDDDDDDDDDD
 ^                               ^     ^         ^
 |                               |     |         |
 head                                           tail
-                               read  dirty        
-                               write              
+                               read  dirty
+                               write
 写入内容与dirty区域叠加，dirty无效
 UUUUUUUUUUUUUUUUUUUUUUUuuuuuuuuuuuuuuuuuuuFFFFFFF
 ^                                         ^     ^
 |                                         |     |
 head                                           tail
                                          read  dirty
-                                         write              
-                      
+                                         write
+
 */
 
 
@@ -680,33 +766,32 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 	assert(rl->dirty <= rl->tail);
 
 
-	
-	
+
+
 	// 写入新内容到内存
 	va_list arg;
 	int done;
 
 	if (rl->dirty < rl->tail) {
 
-	}
-	else if (rl->dirty > rl->tail) { // 不可能
+	} else if (rl->dirty > rl->tail) { // 不可能
 		_rl_reset(rl);
 	}
 	va_start (arg, format);
 	done = vsnprintf (
-			   rl->write,
-			   rl->tail - rl->write,
-			   format,
-			   arg);
+	           rl->write,
+	           rl->tail - rl->write,
+	           format,
+	           arg);
 	va_end (arg);
 	// printf("done rl->data %x %d\n", rl->data, done);
-	
+
 
 
 
 	// 连续空闲内存是否足够填充新的日志
 	// printf("done %d free %d\n", done, rl->tail - rl->write);
-	if ( likely(rl->dirty <= rl->tail)){
+	if ( likely(rl->dirty <= rl->tail)) {
 		if ( likely(done < rl->tail - rl->write)) {
 			rl->write += done;
 			rl->read = rl->write;
@@ -718,21 +803,20 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 			rl->dirty = rl->write;
 			va_start (arg, format);
 			done = vsnprintf (
-					   rl->data,
-					   rl->size,
-					   format,
-					   arg);
+			           rl->data,
+			           rl->size,
+			           format,
+			           arg);
 			va_end (arg);
 			if ( likely(done < rl->size) ) {
 				rl->write = rl->data + done;
 				rl->read = rl->write;
-			}
-			else {
+			} else {
 				printf("warning: ramlog cache too small\n");
 				_rl_reset(rl);
 			}
 		}
-	} else { 
+	} else {
 		if ( likely(done < rl->tail - rl->write) ) {
 			rl->write += done;
 		} else {
@@ -741,26 +825,21 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 			*rl->dirty = '\0';
 			va_start (arg, format);
 			done = vsnprintf (
-					   rl->data,
-					   rl->size,
-					   format,
-					   arg);
+			           rl->data,
+			           rl->size,
+			           format,
+			           arg);
 			va_end (arg);
 			if ( likely(done < rl->size) ) {
 				rl->write = rl->data + done;
 				rl->read = rl->write;
-			}
-			else {
+			} else {
 				printf("warning: ramlog cache too small\n");
 				_rl_reset(rl);
 			}
 		}
 	}
-
-#ifdef CONFIG_RAMLOG_100BYTE_CACHE	
-	rl_writefile(rl);
-#endif
-	
+	_dbg_disp(rl);
 	// TODO unlock
 }
 

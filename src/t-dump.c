@@ -7,10 +7,12 @@
 #define DBG_S(f,...) \
 	printf("%s: %s(): %d:\n\t" f, __FILE__,__FUNCTION__,__LINE__,##__VA_ARGS__)
 
-extern void fun1(char *a);
+#include "bb.h"
 int main()
 {
-	printf("ppid %d pid %d tid %d\n",getppid(), getpid(),syscall(SYS_gettid));
+	printf("ppid %d pid %d tid %d\n", getppid(), getpid(), syscall(SYS_gettid));
+	rl_prefix(&g_rl, "abc-");
+	rl_path(&g_rl, "./log/f/");
 	rl_clone();
 #if 1
 	rl_log2(&g_rl, "1111111111");
@@ -23,6 +25,7 @@ int main()
 	rl_log2(&g_rl, "8888888888");
 	rl_log2(&g_rl, "9999999999");
 	rl_log2(&g_rl, "AAAAAAAAAA");
+	rl_log2(&g_rl, "bbbbbbbbbb");
 	rl_log2(&g_rl, "cccccccccc");
 	rl_log2(&g_rl, "dddddddddd");
 	rl_log2(&g_rl, "eeeeeeeeee");
@@ -39,9 +42,9 @@ int main()
 #if 0
 	char *p = malloc(200);
 	p[199] = '\0';
-	memset(p,'A', 199);
+	memset(p, 'A', 199);
 	rl_log2(&g_rl, p);
-	memset(p,'B', 199);
+	memset(p, 'B', 199);
 	rl_log2(&g_rl, p);
 #endif
 	// while(1) {
