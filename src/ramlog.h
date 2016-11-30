@@ -17,7 +17,7 @@ struct ramlog {
 	unsigned long s_cur;
 
 
-	unsigned int size;
+	int size;
 	char *data;
 	char *head;
 	char *tail;
@@ -31,6 +31,7 @@ struct ramlog {
 	char *filename;
 	// unsigned int free;
 	unsigned int offset;
+	int dir_limit_size;
 };
 extern struct ramlog g_rl;
 #define _1K (1024)

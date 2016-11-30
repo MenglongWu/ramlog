@@ -372,6 +372,16 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 #include "bb.h"
 struct ramlog g_rl;
 
+#define _1K (1024)
+#define _1M (1024*_1K)
+
+#ifdef CONFIG_RAMLOG_100BYTE_CACHE
+	#define CACHE_SIZE (_1K * 64)
+	#define DIR_SIZE (_1K * 1024)
+#else
+	#define CACHE_SIZE (s)
+	#define DIR_SIZE (_1K * 1024)
+#endif
 // 分配共享内存
 void rl_mmap(struct ramlog *rl)
 {
@@ -392,20 +402,18 @@ static void _rl_reset(struct ramlog *rl)
 	rl->dirty = rl->tail;
 	rl->offset = 0;
 	rl->curid  = 0;
+	rl->dir_limit_size = DIR_SIZE;
 }
-#define _1K (1024)
-#define _1M (1024*_1K)
+
 
 
 // 在main函数之前分配内存环境
 void __attribute__((constructor)) _rl_init()
 {
 	TRRAC_TAG();
-#ifdef CONFIG_RAMLOG_100BYTE_CACHE
-	g_rl.size = 100;
-#else
-	g_rl.size = _1K * 64;
-#endif
+
+	g_rl.size = CACHE_SIZE;
+
 	TRRAC_TAG_S("cache size %d\n", g_rl.size);
 	// 分配切填充内存
 	g_rl.data = (char *)malloc(g_rl.size + 1); // 多出的一个字节为安全
@@ -501,23 +509,97 @@ int rl_clone()
 	return -1;
 }
 
-// 检查日志目录下的容量是否到极限
+/**
+ * @brief	检查日志目录下的容量是否到极限
+ * @param	null
+ * @retval	null
+ * @remarks	目录下不能存在文件夹
+ * @see
+ */
+
 static bool _rl_diskpoor(struct ramlog *rl)
 {
+	// 目录大小是否不足以存放10个日志文件
+	char strout[256];
+	FILE *stream;
+	int dirsize;
+
+	snprintf(strout, sizeof(strout), "du -b %s | tail -n 1", rl->diskpath);
+	printf("check dir %s\n", strout);
+	stream = popen(strout, "r");
+	if (stream == NULL) {
+		return 0;
+	}
+	fgets(strout,  32, stream);
+	pclose(stream);
+
+	dirsize = atoi(strout);
+	printf("dirsize = %d s_total %ld %s\n", dirsize , rl->dir_limit_size, rl->diskpath);
+	if (dirsize > rl->dir_limit_size - rl->size * 4) {
+		return true;
+	}
 	return false;
 }
 
 static int _rl_compress(struct ramlog *rl)
 {
-	// 压缩所有log
+	/*
+	 搜索以有的压缩文件列表，并按照列表命名序号给新压缩文件命名
+	 之前存在 logs.1.tar logs.2.tar 或 logs.2.tar
+	 新压缩文件为 logs.3.tar
+	 */
+	char strout[256];
+	FILE *stream;
+	int dirsize;
+
+	// shell 命令找到最后一个tar文件
+	snprintf(strout, sizeof(strout),
+	         "cd %s;"
+	         "ls -1 %s.*.tar | "
+	         "tail -n 1", rl->diskpath, rl->prefix);
+	stream = popen(strout, "r");
+	if (stream == NULL) {
+		return 0;
+	}
+
+	// 找到最后一个文件名存入strout
+	strout[0] = '\0';
+	fgets(strout,  sizeof(strout), stream);
+	pclose(stream);
+
+	// 过滤出最后一个文件名的id号
+	char mask[256]; 	// 过滤方式
+	int index = 0;		// 如果之前不存在任何tar文件，sscanf不对index赋值，index
+	snprintf(mask , sizeof(mask), "%s.%%d.tar", rl->prefix);
+	sscanf(strout, mask, &index);
+
+	/* 压缩所有本前缀日志 */
+	snprintf(strout, sizeof(strout),
+	         "cd %s;"
+	         "ls -1 %s-*.log | xargs "
+	         "tar -cjf %s.%d.tar ",
+	         rl->diskpath, rl->prefix, rl->prefix, index + 1);
+	system(strout);
+
+	/* 删除之前压缩文件 */
+	snprintf(strout, sizeof(strout),
+	         "cd %s;"
+	         "ls -1 %s-*.log | xargs "
+	         "rm",
+	         rl->diskpath, rl->prefix);
+	printf("rm cmd %s\n", strout);
+	system(strout);
 	return 0;
 }
 
+int _rl_clear_logdir(struct ramlog *rl)
+{
+	return 0;
+}
 void _rl_mkdir(struct ramlog *rl)
 {
-	char strout[256];
-	snprintf(strout, 256, "%s", rl->diskpath);
-	printf("mkdir %s", strout);
+	char strout[MAX_PATH];
+	snprintf(strout, MAX_PATH, "%s", rl->diskpath);
 	bb_make_directory(strout, 0777,  FILEUTILS_RECUR);
 }
 /*
@@ -571,11 +653,12 @@ void rl_writefile(struct ramlog *rl)
 
 
 	static int index = 0;
-	snprintf(rl->filename, MAX_PATH, "%s/%s%s-%d", rl->diskpath, rl->prefix, rl->tm, index);
+	snprintf(rl->filename, MAX_PATH, "%s/%s-%s-%d.log", rl->diskpath, rl->prefix, rl->tm, index);
 
 	FILE *fp = fopen(rl->filename, "wb");
 	int ret;
 	if (fp == NULL) {
+		printf("maby full\n");
 		return ;
 	}
 	if (likely(rl->dirty != rl->tail)) {
