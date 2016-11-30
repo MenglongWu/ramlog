@@ -23,7 +23,7 @@
 	dbg("%s: %s(): %d\n", __FILE__,__FUNCTION__,__LINE__)
 #define TRRAC_TAG_S(fmt,...) \
 	dbg("%s: %s(): %d: " fmt, __FILE__,__FUNCTION__,__LINE__,##__VA_ARGS__)
-
+#if 0
 /**
  * @brief	找到文件最新的“几个”文件
  * @param	null
@@ -137,15 +137,7 @@ int _rl_rm_except_last(struct ramlog *val, char *dir)
 	return 0;
 }
 #include <time.h>
-void _rl_tm(struct ramlog *val)
-{
-	time_t t;
-	struct tm *local; //本地时间
 
-	t = time(NULL);
-	local = localtime(&t); //转为本地时间
-	strftime(val->tm, 20, "%Y%m%d-%H-%M-%S", local);
-}
 /**
  * @brief	清除所有ram文件
  * @param	null
@@ -355,7 +347,7 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 	rl_multifile(val, s, done);
 	return done;
 }
-
+#endif
 
 // ***************************************
 // 默认进程内存大小8K
@@ -369,18 +361,25 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 #include <errno.h>
 #include <assert.h>
 #include <stdbool.h>
+#include <time.h>
+#include <stdarg.h>
 #include "bb.h"
 struct ramlog g_rl;
 
 #define _1K (1024)
 #define _1M (1024*_1K)
 
+#define _SEC (1)
+#define _MIN (60)
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
 	#define CACHE_SIZE (_1K * 64)
-	#define DIR_SIZE (_5M)
+	#define DISK_SIZE (_1M * 4)
+	#define CHECK_DISK_DETA (_SEC * 5)	// 5秒
 #else
 	#define CACHE_SIZE (100)
-	#define DIR_SIZE (_1K * 1024)
+	#define DISK_SIZE (_1M * 12)
+	// #define CHECK_DISK_DETA (_MIN * 15)
+	#define CHECK_DISK_DETA (_SEC * 5)
 #endif
 // 分配共享内存
 void rl_mmap(struct ramlog *rl)
@@ -402,7 +401,6 @@ static void _rl_reset(struct ramlog *rl)
 	rl->dirty = rl->tail;
 	rl->offset = 0;
 	rl->curid  = 0;
-	rl->dir_limit_size = DIR_SIZE;
 }
 
 
@@ -416,21 +414,24 @@ void __attribute__((constructor)) _rl_init()
 
 	TRRAC_TAG_S("cache size %d\n", g_rl.size);
 	// 分配切填充内存
-	g_rl.data = (char *)malloc(g_rl.size + 1); // 多出的一个字节为安全
-	if (g_rl.data == NULL) {
-		printf("%s: %s(): %d %s\n", __FILE__, __FUNCTION__, __LINE__, strerror(errno));
-		exit(1);
-	}
-	bzero(g_rl.data, g_rl.size + 1);
+	// g_rl.data = (char *)malloc(g_rl.size + 1); // 多出的一个字节为安全
+	// if (g_rl.data == NULL) {
+	// 	printf("%s: %s(): %d %s\n", __FILE__, __FUNCTION__, __LINE__, strerror(errno));
+	// 	exit(1);
+	// }
+	// bzero(g_rl.data, g_rl.size + 1);
+	_rl_resize(CACHE_SIZE, DISK_SIZE);
 
 	g_rl.diskpath = (char *)malloc(strlen(DEF_DISKPATH) + 1);
 	g_rl.prefix   = (char *)malloc(strlen(DEF_PREFIX) + 1);
 	g_rl.filename = (char *)malloc(MAX_PATH);
+	g_rl.dir_limit_size = DISK_SIZE;
 	if (g_rl.diskpath == NULL || g_rl.prefix == NULL  || g_rl.filename == NULL) {
 		goto err;
 	}
 	strcpy(g_rl.diskpath, DEF_DISKPATH);
 	bzero(g_rl.filename, MAX_PATH);
+
 	_rl_reset(&g_rl);
 	return ;
 err:
@@ -448,6 +449,33 @@ err:
 	g_rl.filename = NULL;
 }
 
+/**
+ * @brief	重新规划容量
+ * @param	ramsize 日志内存缓存大小
+ * @param	disk_limit 日志目录下最大容量
+ * @retval	null
+ * @remarks
+ * @see
+ */
+
+int _rl_resize(int ramsize, int disk_limit)
+{
+	char *pdata = NULL;
+
+	disk_limit = (disk_limit < ramsize * 100) ?  (ramsize * 100) : disk_limit;
+	pdata  = (char *)malloc(ramsize + 1); // 多出的一个字节为安全
+	if (pdata == NULL) {
+		printf("%s: %s(): %d %s\n", __FILE__, __FUNCTION__, __LINE__, strerror(errno));
+		exit(1);
+	}
+	bzero(pdata, ramsize + 1);
+	// todo lock
+	g_rl.size = ramsize;
+	g_rl.data = pdata;
+	_rl_reset(&g_rl);
+	// todo unlock
+	return 0;
+}
 int _rl_repath(char **oldstr, char *newstr)
 {
 	free(*oldstr);
@@ -525,7 +553,6 @@ static bool _rl_diskpoor(struct ramlog *rl)
 	int dirsize;
 
 	snprintf(strout, sizeof(strout), "du -b %s | tail -n 1", rl->diskpath);
-	printf("check dir %s\n", strout);
 	stream = popen(strout, "r");
 	if (stream == NULL) {
 		return 0;
@@ -534,8 +561,7 @@ static bool _rl_diskpoor(struct ramlog *rl)
 	pclose(stream);
 
 	dirsize = atoi(strout);
-	printf("dirsize = %d s_total %ld %s\n", dirsize , rl->dir_limit_size, rl->diskpath);
-	if (dirsize > rl->dir_limit_size - rl->size * 4) {
+	if (dirsize > rl->dir_limit_size - rl->size * 20) {
 		return true;
 	}
 	return false;
@@ -571,7 +597,10 @@ static int _rl_last_tar_id(struct ramlog *rl)
 	char mask[256]; 	// 过滤方式
 	int index = 0;		// 如果之前不存在任何tar文件，sscanf不对index赋值，index
 	snprintf(mask , sizeof(mask), "%s.%%d.tar", rl->prefix);
+
 	sscanf(strout, mask, &index);
+	printf("strout %s ...   %s ... %d\n", strout, mask, index);
+
 	return index;
 }
 
@@ -651,6 +680,17 @@ void _rl_mkdir(struct ramlog *rl)
 	snprintf(strout, MAX_PATH, "%s", rl->diskpath);
 	bb_make_directory(strout, 0777,  FILEUTILS_RECUR);
 }
+
+void _rl_tm(struct ramlog *val)
+{
+	time_t t;
+	struct tm *local; //本地时间
+
+	t = time(NULL);
+	local = localtime(&t); //转为本地时间
+	strftime(val->tm, 20, "%Y%m%d-%H-%M-%S", local);
+}
+
 /*
 1. 缓存末端dirty（大都数情况）
 UUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUUDDDDDDDDDDD
@@ -766,12 +806,25 @@ void sig_user(int v)
 
 int _rl_sub_process(void *ptr)
 {
+	int deta = 0;
 	struct ramlog *p = (struct ramlog *)ptr;
+
 	TRRAC_TAG_S("ppid %d pid %d\n", getppid(), getpid());
 	while(getppid() != 1) {
 		// 死循环等待子进程退出，循环间隔1s
 		// 当主进程退出后本进程同时退出
 		sleep(1);
+		deta++;
+		if (deta > CHECK_DISK_DETA) {
+			deta = 0;
+			if ( 	_rl_diskpoor(&g_rl) &&		// 检查目录大小是否空间紧张
+			        _rl_compress(&g_rl) &&		// 压缩 log -> tar
+			        _rl_rm_log(&g_rl) &&		// 删除 log
+			        _rl_diskpoor(&g_rl) &&		// 检查压缩后空间是否依旧紧张
+			        _rl_rm_past_tar(&g_rl) ) {	// 删除过期的 tar
+				;
+			}
+		}
 	}
 	dbg("\n");
 	TRRAC_TAG_S("parent exit\n");
@@ -927,7 +980,6 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 
 
 	// 连续空闲内存是否足够填充新的日志
-	// printf("done %d free %d\n", done, rl->tail - rl->write);
 	if ( likely(rl->dirty <= rl->tail)) {
 		if ( likely(done < rl->tail - rl->write)) {
 			rl->write += done;
