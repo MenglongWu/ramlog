@@ -30,6 +30,20 @@
 #define FILEUTILS_IGNORE_CHMOD_ERR (1 << 11)
 /* This function is used from NOFORK applets. It must not allocate anything */
 
+
+
+/*
+下面的写法会让程序崩溃
+bb_make_directory("./a/b/c", 777, FILEUTILS_RECUR);
+
+理由是：
+path所属内存不能是 'ro'，也就是不能用全局变量
+
+应该这样调用
+
+char strout[30] = "./a/b/c";
+bb_make_directory(strout, 0777, FILEUTILS_RECUR);
+*/
 int  bb_make_directory(char *path, long mode, int flags)
 {
 	mode_t cur_mask;
