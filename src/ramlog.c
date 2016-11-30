@@ -144,7 +144,7 @@ void _rl_tm(struct ramlog *val)
 
 	t = time(NULL);
 	local = localtime(&t); //转为本地时间
-	strftime(val->tm, 20, "%Y%m%d-%H-%M", local);
+	strftime(val->tm, 20, "%Y%m%d-%H-%M-%S", local);
 }
 /**
  * @brief	清除所有ram文件
@@ -377,9 +377,9 @@ struct ramlog g_rl;
 
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
 	#define CACHE_SIZE (_1K * 64)
-	#define DIR_SIZE (_1K * 1024)
+	#define DIR_SIZE (_5M)
 #else
-	#define CACHE_SIZE (s)
+	#define CACHE_SIZE (100)
 	#define DIR_SIZE (_1K * 1024)
 #endif
 // 分配共享内存
@@ -541,13 +541,13 @@ static bool _rl_diskpoor(struct ramlog *rl)
 	return false;
 }
 
-static int _rl_compress(struct ramlog *rl)
+static int _rl_last_tar_id(struct ramlog *rl)
 {
 	/*
 	 搜索以有的压缩文件列表，并按照列表命名序号给新压缩文件命名
 	 之前存在 logs.1.tar logs.2.tar 或 logs.2.tar
 	 新压缩文件为 logs.3.tar
-	 */
+	*/
 	char strout[256];
 	FILE *stream;
 	int dirsize;
@@ -572,7 +572,43 @@ static int _rl_compress(struct ramlog *rl)
 	int index = 0;		// 如果之前不存在任何tar文件，sscanf不对index赋值，index
 	snprintf(mask , sizeof(mask), "%s.%%d.tar", rl->prefix);
 	sscanf(strout, mask, &index);
+	return index;
+}
 
+/**
+ * @brief	删除所有本工程日志
+ * @param	null
+ * @retval	null
+ * @remarks
+ * @see
+ */
+
+static bool _rl_rm_log(struct ramlog *rl)
+{
+	char strout[256];
+	/* 删除之前压缩文件 */
+	snprintf(strout, sizeof(strout),
+	         "cd %s;"
+	         "ls -1 %s-*.log | xargs "
+	         "rm",
+	         rl->diskpath, rl->prefix);
+	system(strout);
+	return true;
+}
+
+/**
+ * @brief	压缩当前目录下属于本程序的所有 *.log文件，文件命名规则
+ 	/path/prefix.n.tar
+ * @param	null
+ * @retval	null
+ * @remarks
+ * @see
+ */
+
+static bool _rl_compress(struct ramlog *rl)
+{
+	char strout[256];
+	int index = _rl_last_tar_id(rl);
 	/* 压缩所有本前缀日志 */
 	snprintf(strout, sizeof(strout),
 	         "cd %s;"
@@ -580,22 +616,35 @@ static int _rl_compress(struct ramlog *rl)
 	         "tar -cjf %s.%d.tar ",
 	         rl->diskpath, rl->prefix, rl->prefix, index + 1);
 	system(strout);
+	return true;
+}
 
-	/* 删除之前压缩文件 */
+
+
+/**
+ * @brief	只保留最新的2个tar压缩包，其余压缩包删除
+ * @param	null
+ * @retval	null
+ * @remarks
+ * @see
+ */
+
+int _rl_rm_past_tar(struct ramlog *rl)
+{
+	char strout[256];
+	int index = _rl_last_tar_id(rl);
+
 	snprintf(strout, sizeof(strout),
 	         "cd %s;"
-	         "ls -1 %s-*.log | xargs "
-	         "rm",
-	         rl->diskpath, rl->prefix);
-	printf("rm cmd %s\n", strout);
+	         "ls *.tar | "
+	         "grep -v \"%s.%d.tar\\|%s.%d.tar\" |"
+	         "xargs rm",
+	         rl->diskpath,
+	         rl->prefix, index - 1, rl->prefix, index);
 	system(strout);
 	return 0;
 }
 
-int _rl_clear_logdir(struct ramlog *rl)
-{
-	return 0;
-}
 void _rl_mkdir(struct ramlog *rl)
 {
 	char strout[MAX_PATH];
@@ -651,9 +700,13 @@ void rl_writefile(struct ramlog *rl)
 	_rl_tm(rl);
 	_rl_mkdir(&g_rl);
 
-
+	/*
+	 文件名格式
+	 /path/prefix-yymmdd-hh-mm-ss.n.log
+	 其中n是程序运行过程中保持次数，从0开始
+	 */
 	static int index = 0;
-	snprintf(rl->filename, MAX_PATH, "%s/%s-%s-%d.log", rl->diskpath, rl->prefix, rl->tm, index);
+	snprintf(rl->filename, MAX_PATH, "%s/%s-%s.%d.log", rl->diskpath, rl->prefix, rl->tm, index);
 
 	FILE *fp = fopen(rl->filename, "wb");
 	int ret;
@@ -720,24 +773,25 @@ int _rl_sub_process(void *ptr)
 		// 当主进程退出后本进程同时退出
 		sleep(1);
 	}
+	dbg("\n");
+	TRRAC_TAG_S("parent exit\n");
 
 	// 控制日志文件系统的大小
 	// 检查是否需要多当前日志目录进行压缩
-	if (_rl_diskpoor(&g_rl)) {
-		if (_rl_compress(&g_rl)) {
-
-		}
+	if ( 	_rl_diskpoor(&g_rl) &&		// 检查目录大小是否空间紧张
+	        _rl_compress(&g_rl) &&		// 压缩 log -> tar
+	        _rl_rm_log(&g_rl) &&		// 删除 log
+	        _rl_diskpoor(&g_rl) &&		// 检查压缩后空间是否依旧紧张
+	        _rl_rm_past_tar(&g_rl) ) {	// 删除过期的 tar
+		;
 	}
-	dbg("\n");
-	TRRAC_TAG_S("parent exit\n");
+
 	// todo释放所有共享资源，
 	TRRAC_TAG_S("compress log\n");
 
 	// 日志保存到文件系统
 	TRRAC_TAG_S("save log\n");
 	rl_writefile(&g_rl);
-	// 删除日志文件系统的内容（暂时不能删除，调试要用）
-
 
 	puts("\n");
 	return 0;
