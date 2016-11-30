@@ -578,10 +578,10 @@ static int _rl_last_tar_id(struct ramlog *rl)
 	FILE *stream;
 	int dirsize;
 
-	// shell 命令找到最后一个tar文件
+	// shell 命令列出所有tar文件，并以时间顺序排列，记录最后一个文件的 ID
 	snprintf(strout, sizeof(strout),
 	         "cd %s;"
-	         "ls -1 %s.*.tar | "
+	         "ls -1rt %s.*.tar | "
 	         "tail -n 1", rl->diskpath, rl->prefix);
 	stream = popen(strout, "r");
 	if (stream == NULL) {
