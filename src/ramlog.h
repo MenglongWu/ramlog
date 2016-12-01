@@ -43,13 +43,68 @@ struct ramlog {
 };
 extern struct ramlog g_rl;
 
-void rl_mmap(struct ramlog *rl);
-void rl_unmap(struct ramlog *rl);
+void rl_mmap();
+void rl_unmap();
+
+/**
+ * @brief	重新规划容量
+ * @param	ramsize 日志内存缓存大小
+ * @param	disk_limit 日志目录下最大容量
+ * @retval	null
+ * @remarks	disk_limit大小必须是ramsize 的100倍以上
+ * @see
+ */
 int rl_resize(int ramsize, int disk_limit);
-int rl_prefix(struct ramlog *rl, char *newprefix);
-int rl_path(struct ramlog *rl, char *newdiskpath);
+
+/**
+ * @brief	定义日志文件前缀，未定义前采用默认前缀 DEF_PREFIX
+ * @see DEF_PREFIX
+ */
+int rl_prefix(char *newprefix);
+
+/**
+ * @brief	定义日志保存路径，未定义前采用默认路径 DEF_DISKPATH
+ * @see DEF_DISKPATH
+ */
+int rl_path(char *newdiskpath);
+
+/**
+ * @brief	创建子进程，子进程与主进程之间以共享内存方式通信
+ * @param	null
+ * @retval	>0 创建子进程 pid
+ * @retval	<0 发生错误，错误码查阅 errno
+ * @see	_rl_sub_process
+ */
 int rl_clone();
-void rl_writefile(struct ramlog *rl);
+
+/**
+ * @brief	强行将缓存内容写入文件
+ 	每次调用都会创建一个新的日志文件
+ * @remarks	建议不要频繁调用
+ * @see	
+ */
+
+void rl_writefile();
+
+
+/**
+ * @brief	日志内容是否是空的
+ * @retval	true 空
+ * @retval	false 有内容
+ * @remarks	目的是避免不必要的向磁盘写入空内容文件
+ * @see	_rl_reset
+ * @see	_rl_sub_process
+ */
 int rl_log(const char *format, ...);
-int rl_log2(struct ramlog *rl, const char *format, ...);
+
+/**
+ * @brief	以环形缓存方式向写日志，反复覆盖
+ * @param	format 内容格式化
+ * @param	... 格式化参数
+ * @retval	null
+ * @remarks	
+ * @see	rl_log
+ * @see	rl_writefile
+ */
+int rl_logring(const char *format, ...);
 #endif

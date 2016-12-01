@@ -17,7 +17,7 @@ OUTPUT_DIR = lib
 
 
 INCLUDE_DIR	+= -I./ -I./include -I./src 
-LFLAGS		+= 
+LFLAGS		+= -lpthread
 LIB_DIR 	+= 
-CFLAGS      += -std=gnu99  	 -Wall  -g
+CFLAGS      += -std=gnu99  	 -Wall  -O3
 #-D_DEBUG

@@ -120,7 +120,7 @@ int  bb_make_directory(char *path, long mode, int flags)
 			}
 		} else {
 			if (flags & FILEUTILS_VERBOSE) {
-				printf("created directory: '%s'\n", path);
+				// printf("created directory: '%s'\n", path);
 			}
 		}
 

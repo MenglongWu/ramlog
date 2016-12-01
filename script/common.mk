@@ -77,7 +77,7 @@ ifeq ("$(ARCH)", "arm926")
 	INCLUDE_DIR	+= -I/usr/arm926/install/include
 	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/
 	LIB_DIR 	+= -L/usr/arm926/install/lib -L./lib-$(ARCH)
-	CFLAGS		+= -DTARGET_ARM926
+	CFLAGS		+= -DTARGET_ARM926 -march=armv5t -mcpu=arm926ej-s
 endif
 # todo More
 #ifeq ("$(ARCH)", "your_target")

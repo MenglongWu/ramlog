@@ -36,4 +36,5 @@
 #define LONE_CHAR(s,c)     ((s)[0] == (c) && !(s)[1])
 #define NOT_LONE_CHAR(s,c) ((s)[0] != (c) || (s)[1])
 
+int  bb_make_directory(char *path, long mode, int flags);
 #endif
