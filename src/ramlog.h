@@ -5,9 +5,10 @@
 #define MAX_LAST_LOG (4)
 #define MAX_PATH (256)
 struct ramlog {
+#if 0
 	char name[256];
-	char tm[20];
 	
+
 	int curid;					///< 当前文件id
 	int last_log;					///< MAX_LAST_LOG
 	char last_id[MAX_LAST_LOG][32]; ///< 最新的若干文件
@@ -15,8 +16,8 @@ struct ramlog {
 	unsigned long s_log;				///< 单个日志大小，以byte为单位，为提高文件多次写入速度，建议大小设置成扇区大小
 	unsigned long s_total;				///< 日志总大小，以byte为单位
 	unsigned long s_cur;
-
-
+#endif
+	char tm[20];
 	int size;
 	char *data;
 	char *head;
@@ -30,23 +31,20 @@ struct ramlog {
 	char *prefix;				///< 日志前缀
 	char *filename;
 	// unsigned int free;
-	unsigned int offset;
+	// unsigned int offset;
 	int dir_limit_size;
 };
 extern struct ramlog g_rl;
 #define _1K (1024)
 #define _1M (1024*1024)
 
-
-int rl_dirlimitsize(struct ramlog *val, char *dir);
-int rl_init(struct ramlog *val,
-            char *rampath, char *diskpath,
-            int s_log, int s_total);
-int rl_onefile(struct ramlog *val, char *str, int n);
-int rl_multifile(struct ramlog *val, char *str, int n);
-
-
-int rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...);
+void rl_mmap(struct ramlog *rl);
+void rl_unmap(struct ramlog *rl);
+int rl_resize(int ramsize, int disk_limit);
 int rl_prefix(struct ramlog *rl, char *newprefix);
 int rl_path(struct ramlog *rl, char *newdiskpath);
+int rl_clone();
+void rl_writefile(struct ramlog *rl);
+int rl_log(const char *format, ...);
+int rl_log2(struct ramlog *rl, const char *format, ...);
 #endif

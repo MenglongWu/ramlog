@@ -8,9 +8,9 @@
 #include <unistd.h>
 
 #include <autoconfig.h>
-#define DEF_RAMPATH  "/dev/shm/log"
-#define DEF_DISKPATH  "./log/a/b"
-#define DEF_PREFIX "log-"
+// #define DEF_RAMPATH  "/dev/shm/log"
+#define DEF_DISKPATH  "./log/default"
+#define DEF_PREFIX "ramlog"
 
 
 
@@ -372,14 +372,13 @@ struct ramlog g_rl;
 #define _SEC (1)
 #define _MIN (60)
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
-	#define CACHE_SIZE (_1K * 64)
-	#define DISK_SIZE (_1M * 4)
-	#define CHECK_DISK_DETA (_SEC * 5)	// 5秒
+	#define CACHE_SIZE (_1K * 64)		// 内存缓存容量
+	#define DISK_SIZE (_1M * 4)		// 日志所占磁盘容量
+	#define CHECK_DISK_DETA (_SEC * 5)	// 自动检查磁盘容量间隔
 #else
 	#define CACHE_SIZE (100)
 	#define DISK_SIZE (_1M * 12)
-	// #define CHECK_DISK_DETA (_MIN * 15)
-	#define CHECK_DISK_DETA (_SEC * 5)
+	#define CHECK_DISK_DETA (_MIN * 15)
 #endif
 // 分配共享内存
 void rl_mmap(struct ramlog *rl)
@@ -399,8 +398,13 @@ static void _rl_reset(struct ramlog *rl)
 	rl->read  = rl->data;
 	rl->write = rl->data;
 	rl->dirty = rl->tail;
-	rl->offset = 0;
-	rl->curid  = 0;
+	
+	
+	*rl->head = '\0';	// 似的看起来日志cache字符串长度为NULL
+	// *rl->read = '\0';	// 没有必要对read指针也赋值
+	
+	// rl->offset = 0;
+	// rl->curid  = 0;
 }
 
 
@@ -420,7 +424,7 @@ void __attribute__((constructor)) _rl_init()
 	// 	exit(1);
 	// }
 	// bzero(g_rl.data, g_rl.size + 1);
-	_rl_resize(CACHE_SIZE, DISK_SIZE);
+	rl_resize(CACHE_SIZE, DISK_SIZE);
 
 	g_rl.diskpath = (char *)malloc(strlen(DEF_DISKPATH) + 1);
 	g_rl.prefix   = (char *)malloc(strlen(DEF_PREFIX) + 1);
@@ -430,6 +434,7 @@ void __attribute__((constructor)) _rl_init()
 		goto err;
 	}
 	strcpy(g_rl.diskpath, DEF_DISKPATH);
+	strcpy(g_rl.prefix, DEF_PREFIX);
 	bzero(g_rl.filename, MAX_PATH);
 
 	_rl_reset(&g_rl);
@@ -458,7 +463,7 @@ err:
  * @see
  */
 
-int _rl_resize(int ramsize, int disk_limit)
+int rl_resize(int ramsize, int disk_limit)
 {
 	char *pdata = NULL;
 
@@ -658,7 +663,7 @@ static bool _rl_compress(struct ramlog *rl)
  * @see
  */
 
-int _rl_rm_past_tar(struct ramlog *rl)
+static int _rl_rm_past_tar(struct ramlog *rl)
 {
 	char strout[256];
 	int index = _rl_last_tar_id(rl);
@@ -674,7 +679,7 @@ int _rl_rm_past_tar(struct ramlog *rl)
 	return 0;
 }
 
-void _rl_mkdir(struct ramlog *rl)
+static void _rl_mkdir(struct ramlog *rl)
 {
 	char strout[MAX_PATH];
 	snprintf(strout, MAX_PATH, "%s", rl->diskpath);
