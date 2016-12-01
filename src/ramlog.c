@@ -1,16 +1,18 @@
-#include <stdio.h>
-#include <string.h>
-#include <stdlib.h>
-#include <ramlog.h>
 
-#include <sys/stat.h>
-#include <sys/types.h>
-#include <unistd.h>
+
+
+// #include <ramlog.h>
+
+// #include <sys/stat.h>
+// #include <sys/types.h>
+// #include <unistd.h>
 
 #include <autoconfig.h>
+
+
 // #define DEF_RAMPATH  "/dev/shm/log"
 #define DEF_DISKPATH  "./log/default"
-#define DEF_PREFIX "ramlog"
+#define DEF_PREFIX    "ramlog"
 
 
 
@@ -356,21 +358,40 @@ rl_snprintf (struct ramlog *val, char *s, size_t maxlen, const char *format, ...
 #define  likely(x)        __builtin_expect(!!(x), 1)
 #define  unlikely(x)      __builtin_expect(!!(x), 0)
 
-#include <sched.h>
+
+
 #include <sys/mman.h>
-#include <errno.h>
-#include <assert.h>
+#include <sys/time.h>
+
 #include <stdbool.h>
-#include <time.h>
 #include <stdarg.h>
+#include <stdio.h>
+#include <stdlib.h>
+#include <stdint.h>
+
+#include <string.h>
+#include <assert.h>
+#include <errno.h>
+#include <time.h>
+#include <signal.h>
+#include <sched.h>
+
 #include "bb.h"
+#include "ramlog.h"
+
+
 struct ramlog g_rl;
 
 #define _1K (1024)
+
 #define _1M (1024*_1K)
+
 
 #define _SEC (1)
 #define _MIN (60)
+
+
+#define STACK_SIZE (_1K * 12)
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
 	#define CACHE_SIZE (_1K * 64)		// 内存缓存容量
 	#define DISK_SIZE (_1M * 4)		// 日志所占磁盘容量
@@ -380,6 +401,12 @@ struct ramlog g_rl;
 	#define DISK_SIZE (_1M * 12)
 	#define CHECK_DISK_DETA (_MIN * 15)
 #endif
+
+
+
+int _rl_sub_process(void *ptr);
+
+
 // 分配共享内存
 void rl_mmap(struct ramlog *rl)
 {
@@ -398,11 +425,10 @@ static void _rl_reset(struct ramlog *rl)
 	rl->read  = rl->data;
 	rl->write = rl->data;
 	rl->dirty = rl->tail;
-	
-	
+
 	*rl->head = '\0';	// 似的看起来日志cache字符串长度为NULL
 	// *rl->read = '\0';	// 没有必要对read指针也赋值
-	
+
 	// rl->offset = 0;
 	// rl->curid  = 0;
 }
@@ -570,14 +596,13 @@ static bool _rl_diskpoor(struct ramlog *rl)
 	if (stream == NULL) {
 		return 0;
 	}
-	fgets(strout,  32, stream);
+	
+	char *k;
+	k =fgets(strout,  sizeof(strout), stream);
 	pclose(stream);
 
 	dirsize = atoi(strout);
-	if (dirsize > rl->dir_limit_size - rl->size * 20) {
-		return true;
-	}
-	return false;
+	return (dirsize > rl->dir_limit_size - rl->size * 20) ? true : false;
 }
 
 static int _rl_last_tar_id(struct ramlog *rl)
@@ -589,7 +614,6 @@ static int _rl_last_tar_id(struct ramlog *rl)
 	*/
 	char strout[256];
 	FILE *stream;
-	int dirsize;
 
 	// shell 命令列出所有tar文件，并以时间顺序排列，记录最后一个文件的 ID
 	snprintf(strout, sizeof(strout),
@@ -760,20 +784,23 @@ head                                           tail
 read                                           dirty
 write
 */
-void rl_writefile(struct ramlog *rl)
+void _rl_writefile(struct ramlog *rl, bool islock)
 {
 	assert(rl != NULL);
-	assert(rl->size != NULL);
+	assert(rl->size != 0);
 	assert(rl->data != NULL);
 	assert(rl->head == rl->data);
 	assert(rl->tail == rl->data + rl->size);
 	assert(rl->dirty <= rl->tail);
 
-	TRRAC_TAG_S("head %x tail %x size %d\n", rl->head, rl->tail, rl->size);
+	TRRAC_TAG_S("head %x tail %x size %d\n", (uint32_t)rl->head, (uint32_t)rl->tail, rl->size);
 	TRRAC_TAG_S("read %x(%d) write %x(%d) dirty %x(%d)\n",
-	            rl->read, rl->read - rl->head,
-	            rl->write, rl->write - rl->head,
-	            rl->dirty, rl->dirty - rl->head);
+	            (uint32_t)rl->read, rl->read - rl->head,
+	            (uint32_t)rl->write, rl->write - rl->head,
+	            (uint32_t)rl->dirty, rl->dirty - rl->head);
+	if (islock) {
+		pthread_mutex_lock( &rl->mutex );
+	}
 	_rl_tm(rl);
 	_rl_mkdir(&g_rl);
 
