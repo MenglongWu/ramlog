@@ -4,6 +4,8 @@
 
 #define MAX_LAST_LOG (4)
 #define MAX_PATH (256)
+#include <pthread.h>
+#include <stdbool.h>
 struct ramlog {
 #if 0
 	char name[256];
@@ -17,6 +19,11 @@ struct ramlog {
 	unsigned long s_total;				///< 日志总大小，以byte为单位
 	unsigned long s_cur;
 #endif
+	pthread_mutex_t mutex;
+
+	pthread_cond_t cond_dump;
+	pthread_mutex_t mutex_dump;
+	
 	char tm[20];
 	int size;
 	char *data;
@@ -35,8 +42,6 @@ struct ramlog {
 	int dir_limit_size;
 };
 extern struct ramlog g_rl;
-#define _1K (1024)
-#define _1M (1024*1024)
 
 void rl_mmap(struct ramlog *rl);
 void rl_unmap(struct ramlog *rl);

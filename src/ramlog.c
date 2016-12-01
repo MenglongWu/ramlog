@@ -418,14 +418,12 @@ void __attribute__((constructor)) _rl_init()
 
 	TRRAC_TAG_S("cache size %d\n", g_rl.size);
 	// 分配切填充内存
-	// g_rl.data = (char *)malloc(g_rl.size + 1); // 多出的一个字节为安全
-	// if (g_rl.data == NULL) {
-	// 	printf("%s: %s(): %d %s\n", __FILE__, __FUNCTION__, __LINE__, strerror(errno));
-	// 	exit(1);
-	// }
-	// bzero(g_rl.data, g_rl.size + 1);
-	rl_resize(CACHE_SIZE, DISK_SIZE);
 
+	pthread_mutex_init(&g_rl.mutex,      NULL);
+	pthread_mutex_init(&g_rl.mutex_dump, NULL);
+	pthread_cond_init (&g_rl.cond_dump,  NULL);
+
+	rl_resize(CACHE_SIZE, DISK_SIZE);
 	g_rl.diskpath = (char *)malloc(strlen(DEF_DISKPATH) + 1);
 	g_rl.prefix   = (char *)malloc(strlen(DEF_PREFIX) + 1);
 	g_rl.filename = (char *)malloc(MAX_PATH);
@@ -434,8 +432,8 @@ void __attribute__((constructor)) _rl_init()
 		goto err;
 	}
 	strcpy(g_rl.diskpath, DEF_DISKPATH);
-	strcpy(g_rl.prefix, DEF_PREFIX);
-	bzero(g_rl.filename, MAX_PATH);
+	strcpy(g_rl.prefix,   DEF_PREFIX);
+	bzero(g_rl.filename,  MAX_PATH);
 
 	_rl_reset(&g_rl);
 	return ;
@@ -474,10 +472,13 @@ int rl_resize(int ramsize, int disk_limit)
 		exit(1);
 	}
 	bzero(pdata, ramsize + 1);
+
 	// todo lock
+	pthread_mutex_lock( &g_rl.mutex );
 	g_rl.size = ramsize;
 	g_rl.data = pdata;
 	_rl_reset(&g_rl);
+	pthread_mutex_unlock( &g_rl.mutex );
 	// todo unlock
 	return 0;
 }
@@ -500,7 +501,11 @@ int rl_prefix(struct ramlog *rl, char *newprefix)
 	assert(rl != NULL);
 	assert(rl->prefix != NULL);
 	assert(newprefix != NULL);
-	return _rl_repath(&rl->prefix, newprefix);
+
+	pthread_mutex_lock(&g_rl.mutex);
+	_rl_repath(&rl->prefix, newprefix);
+	pthread_mutex_unlock(&g_rl.mutex);
+	return 0;
 }
 
 // 重命名路径
@@ -509,10 +514,13 @@ int rl_path(struct ramlog *rl, char *newdiskpath)
 	assert(rl != NULL);
 	assert(rl->diskpath != NULL);
 	assert(newdiskpath != NULL);
-	return _rl_repath(&rl->diskpath, newdiskpath);
+
+	pthread_mutex_lock(&g_rl.mutex);
+	_rl_repath(&rl->diskpath, newdiskpath);
+	pthread_mutex_unlock(&g_rl.mutex);
+	return 0;
 }
-int _rl_sub_process(void *ptr);
-#define STACK_SIZE (_1K*12)
+
 
 // 创建克隆子进程
 int rl_clone()
@@ -679,6 +687,30 @@ static int _rl_rm_past_tar(struct ramlog *rl)
 	return 0;
 }
 
+/**
+ * @brief	节省存储区空间
+ * @param	null
+ * @retval	null
+ * @remarks
+ * @see
+ */
+
+inline static void _rl_economize_disk()
+{
+	if ( 	_rl_diskpoor(&g_rl) &&		// 检查目录大小是否空间紧张
+	        _rl_compress(&g_rl) &&		// 压缩 log -> tar
+	        _rl_rm_log(&g_rl) &&		// 删除 log
+	        _rl_diskpoor(&g_rl) &&		// 检查压缩后空间是否依旧紧张
+	        _rl_rm_past_tar(&g_rl) ) {	// 删除过期的 tar
+		;
+		/*
+		 TODO 还可以在做一次 _rl_diskpoor 检查，日志文件夹是否被其他
+		 内容占用，导致即使本应用程序的所有日志以最小状态下仍旧不能
+		 满足
+		*/
+	}
+}
+
 static void _rl_mkdir(struct ramlog *rl)
 {
 	char strout[MAX_PATH];
@@ -686,7 +718,7 @@ static void _rl_mkdir(struct ramlog *rl)
 	bb_make_directory(strout, 0777,  FILEUTILS_RECUR);
 }
 
-void _rl_tm(struct ramlog *val)
+static inline void _rl_tm(struct ramlog *val)
 {
 	time_t t;
 	struct tm *local; //本地时间
@@ -754,45 +786,65 @@ void rl_writefile(struct ramlog *rl)
 	snprintf(rl->filename, MAX_PATH, "%s/%s-%s.%d.log", rl->diskpath, rl->prefix, rl->tm, index);
 
 	FILE *fp = fopen(rl->filename, "wb");
-	int ret;
+
 	if (fp == NULL) {
 		printf("maby full\n");
 		return ;
 	}
 	if (likely(rl->dirty != rl->tail)) {
-		dbg("read -- dirty  %0.200s\n", rl->read + 1);
-		dbg("head -- read  %0.200s\n", rl->head);
+		dbg("read -- dirty  %.200s\n", rl->read + 1);
+		dbg("head -- read  %.200s\n", rl->head);
 		fprintf(fp, "%s", rl->read + 1);
 		fprintf(fp, "%s", rl->head);
 
 	} else {
-		dbg("head -- read  %0.200s\n", rl->head);
+		dbg("head -- read  %.200s\n", rl->head);
 		fprintf(fp, "%s", rl->head);
 	}
 	fclose(fp);
 	_rl_reset(rl);
+	if (islock) {
+		pthread_mutex_unlock( &rl->mutex );
+	}
 	index++;
+}
+void rl_writefile(struct ramlog *rl)
+{
+	_rl_writefile(rl, true);
+}
+
+/**
+ * @brief	日志内容是否是空的
+ * @retval	true 空
+ * @retval	false 有内容
+ * @remarks	目的是避免不必要的向磁盘写入空内容文件
+ * @see	_rl_reset
+ * @see	_rl_sub_process
+ */
+static inline bool _rl_log_is_empty()
+{
+	return (g_rl.head == '\0') ? true : false;
 }
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
 void _dbg_disp(struct ramlog *rl)
 {
 	assert(rl != NULL);
-	assert(rl->size != NULL);
+	assert(rl->size != 0);
 	assert(rl->data != NULL);
 	assert(rl->head == rl->data);
 	assert(rl->tail == rl->data + rl->size);
 	assert(rl->dirty <= rl->tail);
 
-	TRRAC_TAG_S("head %x tail %x size %d\n", rl->head, rl->tail, rl->size);
+	TRRAC_TAG_S("head %x tail %x size %d\n", (uint32_t)rl->head, (uint32_t)rl->tail, rl->size);
 	TRRAC_TAG_S("read %x(%d) write %x(%d) dirty %x(%d)\n",
-	            rl->read, rl->read - rl->head,
-	            rl->write, rl->write - rl->head,
-	            rl->dirty, rl->dirty - rl->head);
+	            (uint32_t)rl->read, rl->read - rl->head,
+	            (uint32_t)rl->write, rl->write - rl->head,
+	            (uint32_t)rl->dirty, rl->dirty - rl->head);
 	if (likely(rl->dirty != rl->tail)) {
-		dbg("read -- dirty  %0.200s\n", rl->read + 1);
-		dbg("head -- read  %0.200s\n", rl->head);
+		dbg("read -- dirty  %.200s\n", rl->read + 1);
+		dbg("head -- read  %.200s\n", rl->head);
 	} else {
-		dbg("head -- read  %0.200s\n", rl->head);
+		dbg("head -- read  %.200s\n", rl->head);
 	}
 }
 #else
@@ -800,9 +852,12 @@ void _dbg_disp(struct ramlog *rl)
 #endif
 void sig_user(int v)
 {
-	// 根据信号参数执行
-	// 1. 拷贝日志到内存
-	// 2. 保存日志到文件系统
+	/*
+	  发送条件变量给 _rl_sub_process 进程，sig_user不做可能导致死锁的处理
+	  pthread_cond_timedwait
+	*/
+	pthread_cond_signal(&g_rl.cond_dump);
+
 }
 
 #include <unistd.h>
@@ -811,24 +866,49 @@ void sig_user(int v)
 
 int _rl_sub_process(void *ptr)
 {
-	int deta = 0;
-	struct ramlog *p = (struct ramlog *)ptr;
+	int deta = 0;		// 多久时间执行一次自动保存操作
+	signal(SIGUSR1, sig_user);
 
 	TRRAC_TAG_S("ppid %d pid %d\n", getppid(), getpid());
+
+
+	struct timespec tm_abs;
+	struct timeval  tm_now;
+
+
+
+	// 死循环等待子进程退出，循环间隔1s
+	// 当主进程退出后本进程同时退出
 	while(getppid() != 1) {
-		// 死循环等待子进程退出，循环间隔1s
-		// 当主进程退出后本进程同时退出
-		sleep(1);
+		// Task 1. 等待其他外部发送信号通知保存
+		gettimeofday( &tm_now, 0);
+		tm_abs.tv_sec  = tm_now.tv_sec + 10;
+		tm_abs.tv_nsec = 0;
+		// TODO
+		// pthread_cleanup_push
+		pthread_mutex_lock( &g_rl.mutex_dump );
+		if (0 ==  pthread_cond_timedwait(&g_rl.cond_dump, &g_rl.mutex_dump, &tm_abs) ) {
+			// 收到信号保存日志
+			_rl_economize_disk();
+
+			// 只有当日志内容不为空才
+			if ( !_rl_log_is_empty() ) {
+				_rl_writefile(&g_rl, false);
+			} else {
+				printf("\rramlog cache is empty");
+			}
+
+		}
+		pthread_mutex_unlock( &g_rl.mutex_dump );
+		// pthread_cleanup_pop(0)
+
+
+
+		// Task 2. 定时检查日志文件夹下本程序所占容量
 		deta++;
 		if (deta > CHECK_DISK_DETA) {
 			deta = 0;
-			if ( 	_rl_diskpoor(&g_rl) &&		// 检查目录大小是否空间紧张
-			        _rl_compress(&g_rl) &&		// 压缩 log -> tar
-			        _rl_rm_log(&g_rl) &&		// 删除 log
-			        _rl_diskpoor(&g_rl) &&		// 检查压缩后空间是否依旧紧张
-			        _rl_rm_past_tar(&g_rl) ) {	// 删除过期的 tar
-				;
-			}
+			_rl_economize_disk();
 		}
 	}
 	dbg("\n");
@@ -836,20 +916,14 @@ int _rl_sub_process(void *ptr)
 
 	// 控制日志文件系统的大小
 	// 检查是否需要多当前日志目录进行压缩
-	if ( 	_rl_diskpoor(&g_rl) &&		// 检查目录大小是否空间紧张
-	        _rl_compress(&g_rl) &&		// 压缩 log -> tar
-	        _rl_rm_log(&g_rl) &&		// 删除 log
-	        _rl_diskpoor(&g_rl) &&		// 检查压缩后空间是否依旧紧张
-	        _rl_rm_past_tar(&g_rl) ) {	// 删除过期的 tar
-		;
-	}
+	_rl_economize_disk();
 
 	// todo释放所有共享资源，
 	TRRAC_TAG_S("compress log\n");
 
 	// 日志保存到文件系统
 	TRRAC_TAG_S("save log\n");
-	rl_writefile(&g_rl);
+	_rl_writefile(&g_rl, false);
 
 	puts("\n");
 	return 0;
@@ -858,7 +932,7 @@ int _rl_sub_process(void *ptr)
 // 写入到默认日志位置
 int rl_log(const char *format, ...)
 {
-
+	return 0;
 }
 
 // 写入到自定日志位置
@@ -954,15 +1028,15 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 {
 	// todo LOCK
 	assert(rl != NULL);
-	assert(rl->size != NULL);
+	assert(rl->size != 0);
 	assert(rl->data != NULL);
 	assert(rl->head == rl->data);
 	assert(rl->tail == rl->data + rl->size);
 	assert(rl->dirty <= rl->tail);
 
-
-
-
+	// TODO
+	// pthread_cleanup_push
+	pthread_mutex_lock( &rl->mutex );
 	// 写入新内容到内存
 	va_list arg;
 	int done;
@@ -1034,7 +1108,10 @@ int rl_log2(struct ramlog *rl, const char *format, ...)
 		}
 	}
 	_dbg_disp(rl);
-	// TODO unlock
+	pthread_mutex_unlock( &rl->mutex );
+	// TODO
+	// pthread_cleanup_pop(0)
+	return 0;
 }
 
 
