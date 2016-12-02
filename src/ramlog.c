@@ -801,7 +801,7 @@ head                                           tail
 read                                           dirty
 write
 */
-void _rl_writefile(bool islock)
+void _rl_writefile(bool use_mutex)
 {
 	assert(g_rl.size != 0);
 	assert(g_rl.data != NULL);
@@ -814,7 +814,7 @@ void _rl_writefile(bool islock)
 	            (uint32_t)g_rl.read, g_rl.read - g_rl.head,
 	            (uint32_t)g_rl.write, g_rl.write - g_rl.head,
 	            (uint32_t)g_rl.dirty, g_rl.dirty - g_rl.head);
-	if (islock) {
+	if ( likely(use_mutex) ) {
 		pthread_mutex_lock( &g_rl.mutex );
 	}
 	_rl_tm();
@@ -846,7 +846,7 @@ void _rl_writefile(bool islock)
 	}
 	fclose(fp);
 	_rl_reset();
-	if (islock) {
+	if ( likely(use_mutex) ) {
 		pthread_mutex_unlock( &g_rl.mutex );
 	}
 	index++;
@@ -869,7 +869,7 @@ void rl_writefile()
 
 static inline bool _rl_log_is_empty()
 {
-	return (g_rl.head == '\0') ? true : false;
+	return (*g_rl.head == '\0') ? true : false;
 }
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
 void _dbg_disp()
@@ -974,14 +974,16 @@ int _rl_sub_process(void *ptr)
 
 	// 控制日志文件系统的大小
 	// 检查是否需要多当前日志目录进行压缩
+	TRRAC_TAG_S("compress log\n");
 	_rl_economize_disk();
 
-	// todo释放所有共享资源，
-	TRRAC_TAG_S("compress log\n");
+	// todo释放所有共享资源
 
 	// 日志保存到文件系统
-	TRRAC_TAG_S("save log\n");
-	_rl_writefile(false);
+	if ( !_rl_log_is_empty() ) {
+		TRRAC_TAG_S("save log\n");
+		_rl_writefile(false);
+	}
 
 	puts("\n");
 	return 0;
@@ -999,6 +1001,103 @@ int _rl_sub_process(void *ptr)
  */
 int rl_log(const char *format, ...)
 {
+	assert(g_rl.size  != 0);
+	assert(g_rl.data  != NULL);
+	assert(g_rl.head  == g_rl.data);
+	assert(g_rl.tail  == g_rl.data + g_rl.size);
+	assert(g_rl.dirty <= g_rl.tail);
+	assert(g_rl.write >= g_rl.head);
+	assert(g_rl.write <= g_rl.tail);
+	assert(g_rl.read  >= g_rl.head);
+	assert(g_rl.read  <= g_rl.tail);
+
+	// TODO
+	// pthread_cleanup_push
+	pthread_mutex_lock( &g_rl.mutex );
+	// 写入新内容到内存
+	va_list 	arg;
+	int 		done;		// 新日志内容成功写入 ramlog cache 字节数
+
+	if (g_rl.dirty < g_rl.tail) {
+
+	} else if (g_rl.dirty > g_rl.tail) { // 不可能
+		_rl_reset();
+	}
+	va_start (arg, format);
+	done = vsnprintf (
+	           g_rl.write,
+	           g_rl.tail - g_rl.write,
+	           format,
+	           arg);
+	va_end (arg);
+	// printf("done g_rl.data %x %d\n", g_rl.data, done);
+
+
+	// TODO 优化逻辑
+	printf("line %d\n", __LINE__);
+	// 连续空闲内存是否足够填充新的日志
+	if ( likely(g_rl.dirty < g_rl.tail)) {
+		if ( likely(done < g_rl.tail - g_rl.write)) {
+			printf("line %d\n", __LINE__);
+			g_rl.write += done;
+			g_rl.read = g_rl.write;
+			if (g_rl.write >= g_rl.dirty) {
+				g_rl.dirty = g_rl.tail;
+			}
+		} else {
+			printf("line %d\n", __LINE__);
+			*g_rl.write = '\0';// 设置字符串结束
+			_rl_writefile(false);
+			_rl_reset();
+			g_rl.dirty = g_rl.write;
+			va_start (arg, format);
+			done = vsnprintf (
+			           g_rl.data,
+			           g_rl.size,
+			           format,
+			           arg);
+			va_end (arg);
+			if ( likely(done < g_rl.size) ) {
+				g_rl.write = g_rl.data + done;
+				g_rl.read = g_rl.write;
+				// *(g_rl.read + 1) = '\0';
+			} else {
+				printf("warning: ramlog cache too small\n");
+				_rl_reset();
+			}
+		}
+	} else {
+		if ( likely(done < g_rl.tail - g_rl.write) ) {
+			printf("line %d\n", __LINE__);
+			g_rl.write += done;
+		} else {
+			printf("line %d\n", __LINE__);
+			// 不够则将日志写入点标记为 “脏” 从头开始填写
+			*g_rl.write = '\0';
+			_rl_writefile(false);
+			_rl_reset();
+			*g_rl.dirty = '\0';
+			va_start (arg, format);
+			done = vsnprintf (
+			           g_rl.data,
+			           g_rl.size,
+			           format,
+			           arg);
+			va_end (arg);
+			if ( likely(done < g_rl.size) ) {
+				g_rl.write = g_rl.data + done;
+				g_rl.read = g_rl.write;
+			} else {
+				printf("warning: ramlog cache too small\n");
+				_rl_reset();
+			}
+		}
+	}
+	// end TODO 优化逻辑
+
+	pthread_mutex_unlock( &g_rl.mutex );
+	// TODO
+	// pthread_cleanup_pop(0)
 	return 0;
 }
 
@@ -1093,11 +1192,15 @@ head                                           tail
 int rl_logring(const char *format, ...)
 {
 	// todo LOCK
-	assert(g_rl.size != 0);
-	assert(g_rl.data != NULL);
-	assert(g_rl.head == g_rl.data);
-	assert(g_rl.tail == g_rl.data + g_rl.size);
+	assert(g_rl.size  != 0);
+	assert(g_rl.data  != NULL);
+	assert(g_rl.head  == g_rl.data);
+	assert(g_rl.tail  == g_rl.data + g_rl.size);
 	assert(g_rl.dirty <= g_rl.tail);
+	assert(g_rl.write >= g_rl.head);
+	assert(g_rl.write <= g_rl.tail);
+	assert(g_rl.read  >= g_rl.head);
+	assert(g_rl.read  <= g_rl.tail);
 
 	// TODO
 	// pthread_cleanup_push
@@ -1124,7 +1227,7 @@ int rl_logring(const char *format, ...)
 	// TODO 优化逻辑
 
 	// 连续空闲内存是否足够填充新的日志
-	if ( likely(g_rl.dirty <= g_rl.tail)) {
+	if ( likely(g_rl.dirty < g_rl.tail)) {
 		if ( likely(done < g_rl.tail - g_rl.write)) {
 			g_rl.write += done;
 			g_rl.read = g_rl.write;
