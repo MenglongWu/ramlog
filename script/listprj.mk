@@ -14,7 +14,9 @@
 		pi12_arg=elf
 	pi13=script/test-logring
 		pi13_arg=elf
+	pi14=script/test-tar
+		pi14_arg=elf
 		
 
 # default project item
-export DP=pi11
+export DP=pi14

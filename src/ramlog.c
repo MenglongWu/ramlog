@@ -605,7 +605,7 @@ static bool _rl_diskpoor()
 	FILE 		*stream;
 	int   		 dirsize;
 
-	snprintf(strout, sizeof(strout), "du -b %s | tail -n 1", g_rl.diskpath);
+	snprintf(strout, sizeof(strout), "du -k %s | tail -n 1", g_rl.diskpath);
 	stream = popen(strout, "r");
 	if ( NULL == stream ) {
 		return 0;
@@ -616,6 +616,7 @@ static bool _rl_diskpoor()
 	pclose(stream);
 
 	dirsize = atoi(strout);
+	dirsize *= 1024;
 	return (dirsize > g_rl.dir_limit_size - g_rl.size * 20) ? true : false;
 }
 
@@ -692,12 +693,25 @@ static bool _rl_compress()
 	int  index              = _rl_last_tar_id();
 
 	/* 压缩所有本前缀日志 */
+	// snprintf(strout, sizeof(strout),
+	//          "cd %s;"
+	//          "ls -1 %s-*.log | xargs "
+	//          "tar -cjf %s.%d.tar ",
+	//          g_rl.diskpath, g_rl.prefix, g_rl.prefix, index + 1);
+	// system(strout);
+#if 1
+	/*
+	 为了busybox
+	tar -cjf tmp.tar *.log   
+	tar: can't execute 'bzip2': No such file or directory
+	*/
 	snprintf(strout, sizeof(strout),
 	         "cd %s;"
 	         "ls -1 %s-*.log | xargs "
-	         "tar -cjf %s.%d.tar ",
+	         "tar -czf %s.%d.tar ",
 	         g_rl.diskpath, g_rl.prefix, g_rl.prefix, index + 1);
 	system(strout);
+#endif
 	return true;
 }
 
@@ -1034,18 +1048,15 @@ int rl_log(const char *format, ...)
 
 
 	// TODO 优化逻辑
-	printf("line %d\n", __LINE__);
 	// 连续空闲内存是否足够填充新的日志
 	if ( likely(g_rl.dirty < g_rl.tail)) {
 		if ( likely(done < g_rl.tail - g_rl.write)) {
-			printf("line %d\n", __LINE__);
 			g_rl.write += done;
 			g_rl.read = g_rl.write;
 			if (g_rl.write >= g_rl.dirty) {
 				g_rl.dirty = g_rl.tail;
 			}
 		} else {
-			printf("line %d\n", __LINE__);
 			*g_rl.write = '\0';// 设置字符串结束
 			_rl_writefile(false);
 			_rl_reset();
@@ -1068,10 +1079,8 @@ int rl_log(const char *format, ...)
 		}
 	} else {
 		if ( likely(done < g_rl.tail - g_rl.write) ) {
-			printf("line %d\n", __LINE__);
 			g_rl.write += done;
 		} else {
-			printf("line %d\n", __LINE__);
 			// 不够则将日志写入点标记为 “脏” 从头开始填写
 			*g_rl.write = '\0';
 			_rl_writefile(false);
