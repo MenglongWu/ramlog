@@ -801,7 +801,7 @@ head                                           tail
 read                                           dirty
 write
 */
-void _rl_writefile(bool islock)
+void _rl_writefile(bool use_mutex)
 {
 	assert(g_rl.size != 0);
 	assert(g_rl.data != NULL);
@@ -814,7 +814,7 @@ void _rl_writefile(bool islock)
 	            (uint32_t)g_rl.read, g_rl.read - g_rl.head,
 	            (uint32_t)g_rl.write, g_rl.write - g_rl.head,
 	            (uint32_t)g_rl.dirty, g_rl.dirty - g_rl.head);
-	if (islock) {
+	if ( likely(use_mutex) ) {
 		pthread_mutex_lock( &g_rl.mutex );
 	}
 	_rl_tm();
@@ -846,7 +846,7 @@ void _rl_writefile(bool islock)
 	}
 	fclose(fp);
 	_rl_reset();
-	if (islock) {
+	if ( likely(use_mutex) ) {
 		pthread_mutex_unlock( &g_rl.mutex );
 	}
 	index++;
@@ -999,6 +999,15 @@ int _rl_sub_process(void *ptr)
  */
 int rl_log(const char *format, ...)
 {
+	assert(g_rl.size  != 0);
+	assert(g_rl.data  != NULL);
+	assert(g_rl.head  == g_rl.data);
+	assert(g_rl.tail  == g_rl.data + g_rl.size);
+	assert(g_rl.dirty <= g_rl.tail);
+	assert(g_rl.write >= g_rl.head);
+	assert(g_rl.write <= g_rl.tail);
+	assert(g_rl.read  >= g_rl.head);
+	assert(g_rl.read  <= g_rl.tail);
 	return 0;
 }
 
@@ -1093,11 +1102,15 @@ head                                           tail
 int rl_logring(const char *format, ...)
 {
 	// todo LOCK
-	assert(g_rl.size != 0);
-	assert(g_rl.data != NULL);
-	assert(g_rl.head == g_rl.data);
-	assert(g_rl.tail == g_rl.data + g_rl.size);
+	assert(g_rl.size  != 0);
+	assert(g_rl.data  != NULL);
+	assert(g_rl.head  == g_rl.data);
+	assert(g_rl.tail  == g_rl.data + g_rl.size);
 	assert(g_rl.dirty <= g_rl.tail);
+	assert(g_rl.write >= g_rl.head);
+	assert(g_rl.write <= g_rl.tail);
+	assert(g_rl.read  >= g_rl.head);
+	assert(g_rl.read  <= g_rl.tail);
 
 	// TODO
 	// pthread_cleanup_push
