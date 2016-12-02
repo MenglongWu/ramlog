@@ -6,7 +6,7 @@ PRJ_SUBLEVEL   = "0"
 
 
 # default download.elf,download.dis,download.bin
-OUTPUT_ELF	= t-dump.elf
+OUTPUT_ELF	= t-logring.elf
 OUTPUT_DIS	=
 OUTPUT_BIN	= 
 OUTPUT_SO 	= 

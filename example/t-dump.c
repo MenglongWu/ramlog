@@ -1,3 +1,19 @@
+/**
+ ******************************************************************************
+ * @file	t-dump.c
+ * @brief	TODO:brief 
+
+TODO:introduce 
+ *
+ @section Platform
+	-# 
+ @section Library
+	-# 
+- 20xx-xx-xx,author,email
+ 	- brief
+
+*/
+
 #include <stdio.h>
 #include "ramlog.h"
 
@@ -5,26 +21,21 @@
 #include <sys/syscall.h>
 #include <sys/types.h>
 #include <stdbool.h>
-#define DBG_S(f,...) \
-	printf("%s: %s(): %d:\n\t" f, __FILE__,__FUNCTION__,__LINE__,##__VA_ARGS__)
 
-#include "bb.h"
-void fu3n()
-{
-	FILE *stream;
-	char strout [33];
-	fgets(strout,  sizeof(strout), stream);
-}
+#define _1K (1024)
+#define _1M (1024*_1K)
+
 int main()
 {
 
 	printf("ppid %d pid %d tid %d\n", getppid(), getpid(), syscall(SYS_gettid));
 
-	rl_prefix("abc");
-	rl_path("./log/my/");
+	rl_resize(_1K * 4, _1M * 16);
+	rl_prefix("mylog");
+	rl_path("./log/t-dump/");
 	rl_clone();
-	
-#if 1
+
+
 	rl_logring("1111111111");
 	rl_logring("2222222222");
 	rl_logring("3333333333");
@@ -48,7 +59,7 @@ int main()
 	rl_logring("LLLLLLLLLL");
 	rl_logring("MMMMMMMMMM");
 	rl_logring("NNNNNNNNNN");
-#endif
+
 	printf("main end\n");
 	return 0;
 }
