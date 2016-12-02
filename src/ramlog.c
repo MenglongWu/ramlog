@@ -869,7 +869,7 @@ void rl_writefile()
 
 static inline bool _rl_log_is_empty()
 {
-	return (g_rl.head == '\0') ? true : false;
+	return (*g_rl.head == '\0') ? true : false;
 }
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
 void _dbg_disp()
@@ -974,14 +974,16 @@ int _rl_sub_process(void *ptr)
 
 	// 控制日志文件系统的大小
 	// 检查是否需要多当前日志目录进行压缩
+	TRRAC_TAG_S("compress log\n");
 	_rl_economize_disk();
 
-	// todo释放所有共享资源，
-	TRRAC_TAG_S("compress log\n");
+	// todo释放所有共享资源
 
 	// 日志保存到文件系统
-	TRRAC_TAG_S("save log\n");
-	_rl_writefile(false);
+	if ( !_rl_log_is_empty() ) {
+		TRRAC_TAG_S("save log\n");
+		_rl_writefile(false);
+	}
 
 	puts("\n");
 	return 0;
