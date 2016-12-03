@@ -107,4 +107,69 @@ int rl_log(const char *format, ...);
  * @see	rl_writefile
  */
 int rl_logring(const char *format, ...);
+
+
+
+#define C_BLUE    "\e[36m"
+#define C_NORMAL  "\e[0m"
+#define C_RED     "\e[31m"
+#define C_YELLOW  "\e[33m"
+#define C_PURPLE  "\e[35m"
+
+#define DEBUG C_BLUE
+#define WARN  C_YELLOW
+#define ERROR C_RED
+
+
+#if CONFIG_LOG_TIMESTAMP
+#   define RL_TIMESTAMP_V \
+	time_t t = time(NULL);\
+	struct tm *local = localtime(&t);
+#   define RL_TIMESTAMP "%d%d%d %d:%d:%d "
+#   define RL_TIMESTAMP_P(v) \
+	(1900 + v->tm_year), (1 + v->tm_mon), (v->tm_mday),\
+	(v->tm_hour), (v->tm_min), (v->tm_sec)
+#else
+#   define RL_TIMESTAMP_V
+#   define RL_TIMESTAMP
+#   define RL_TIMESTAMP_P(v)
+#endif
+
+#if CONFIG_LOG_TRACE
+#   define RL_TRACE   "%s() %d: "
+#   define RL_TRACE_P __FUNCTION__, __LINE__
+#endif
+
+#define crl_log(C1,C2,fmt, ...) rl_log(C1 fmt C2, ##__VA_ARGS__)
+#if CONFIG_LOG_TRACE
+#   define trl_log(C1,C2,fmt,...) \
+	do { \
+		RL_TIMESTAMP_V    \
+		crl_log(C1,C2,    \
+			RL_TIMESTAMP  \
+			RL_TRACE      \
+			fmt "\r\n",   \
+			RL_TIMESTAMP_P(local), \
+			RL_TRACE_P,	      \
+			##__VA_ARGS__);       \
+	}while(0)
+#else
+#   define trl_log(C1,C2,fmt,...) \
+	do { \
+		RL_TIMESTAMP_V   \
+		crl_log(C1,C2,   \
+			RL_TIMESTAMP \
+			fmt "\r\n",  \
+			RL_TIMESTAMP_P(local), \
+			##__VA_ARGS__);       \
+	}while(0)
+#endif
+
+#define LOGI(fmt,...) trl_log(""      ,       "", fmt, ##__VA_ARGS__)
+#define LOGT(fmt,...) trl_log(C_BLUE  , C_NORMAL, fmt, ##__VA_ARGS__)
+#define LOGD(fmt,...) trl_log(C_BLUE  , C_NORMAL, fmt, ##__VA_ARGS__)
+#define LOGW(fmt,...) trl_log(C_YELLOW, C_NORMAL, fmt, ##__VA_ARGS__)
+#define LOGA(fmt,...) trl_log(C_PURPLE, C_NORMAL, fmt, ##__VA_ARGS__)
+#define LOGE(fmt,...) trl_log(C_RED   , C_NORMAL, fmt, ##__VA_ARGS__)
+
 #endif
