@@ -71,11 +71,15 @@ int main()
 
 	
 	bzero(data, len);
-	for (int i = 0;i < 1000; i++) {
+
+	int i = 0;
+	while(1) {
 		index = i % 10;
-		memset(data, '1' + index, len  - 1);
+		memset(data, '0' + index, len  - 1);
 		rl_log(data);
-		sleep(1);
+		// sleep(1);
+		usleep(10000);
+		i++;
 	}
 	return 0;
 }

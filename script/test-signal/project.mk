@@ -6,7 +6,7 @@ PRJ_SUBLEVEL   = "0"
 
 
 # default download.elf,download.dis,download.bin
-OUTPUT_ELF	= t-type.elf
+OUTPUT_ELF	= t-signal.elf
 OUTPUT_DIS	=
 OUTPUT_BIN	= 
 OUTPUT_SO 	= 
@@ -19,5 +19,5 @@ OUTPUT_DIR = release
 INCLUDE_DIR	+= -I./ -I./include -I./src 
 LFLAGS		+= -lpthread -lramlog
 LIB_DIR 	+= 
-CFLAGS      +=   	 -Wall  -g 
+CFLAGS      +=   	 -Wall  -g
 #-D_DEBUG
