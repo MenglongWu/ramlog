@@ -10,7 +10,13 @@
 		pi10_arg=elf
 	pi11=script/test-dump
 		pi11_arg=elf
+	pi12=script/test-log
+		pi12_arg=elf
+	pi13=script/test-logring
+		pi13_arg=elf
+	pi14=script/test-tar
+		pi14_arg=elf
 		
 
 # default project item
-export DP=pi11
+export DP=pi14

@@ -44,14 +44,14 @@ CS_FLAGS    =
 
 ifeq ("$(ARCH)", "x86")
 	INCLUDE_DIR	+= 
-	LFLAGS		+= -Wl,-rpath=./:lib-x86/
+	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/:../lib-$(ARCH)/
 	LIB_DIR 	+= -L/usr/local/install/lib -L./lib-$(ARCH)
 	CFLAGS		+= -DTARGET_X86
 endif
 
 ifeq ("$(ARCH)", "armv7")
 	INCLUDE_DIR	+= -I/usr/4412/install/include
-	LFLAGS		+= -Wl,-rpath=./:./lib-armv7/
+	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/:../lib-$(ARCH)/
 	LIB_DIR 	+= -L/usr/4412/install/lib -L./lib-$(ARCH)
 	CFLAGS		+= -DTARGET_ARMV7
 endif
@@ -59,7 +59,7 @@ endif
 
 ifeq ("$(ARCH)", "arm920t")
 	INCLUDE_DIR	+= -I/usr/arm920t/install/include
-	LFLAGS		+= -Wl,-rpath=./:./lib-arm920t/
+	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/:../lib-$(ARCH)/
 	LIB_DIR 	+= -L/usr/arm920t/install/lib -L./lib-$(ARCH)
 	CFLAGS		+= -DTARGET_ARM920T
 endif
@@ -67,7 +67,7 @@ endif
 
 ifeq ("$(ARCH)", "win32")
 	INCLUDE_DIR	+= -I/usr/win32/install/include
-	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/
+	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/:../lib-$(ARCH)/
 	LIB_DIR 	+= -L/usr/win32/install/lib -L./lib-$(ARCH)
 	CFLAGS		+= -DTARGET_WIN32
 endif
@@ -75,7 +75,7 @@ endif
 
 ifeq ("$(ARCH)", "arm926")
 	INCLUDE_DIR	+= -I/usr/arm926/install/include
-	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/
+	LFLAGS		+= -Wl,-rpath=./:./lib-$(ARCH)/:../lib-$(ARCH)/
 	LIB_DIR 	+= -L/usr/arm926/install/lib -L./lib-$(ARCH)
 	CFLAGS		+= -DTARGET_ARM926 -march=armv5t -mcpu=arm926ej-s
 endif
