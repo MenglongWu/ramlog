@@ -32,15 +32,15 @@ deta 过小影响系统性能，默认 deta = 30 min
 	1. 当前日志目录容量 + 20 * 缓存 >= 限制日志目录容量，触发压缩
 	2. 将目录下所有本应用程序产生的日志进行打包处理，生成mylog.1.tar，tar序号依次递增
 	3. 当tar文件容量也将目录容量使用如同 1. 一样，执行删除 老旧的 tar
-	4. 按时间顺序排列保留最新的两个 tar 
+	4. 按时间顺序排列保留最新的两个 tar
 
  *
  @section Platform
-	-# 
+	-#
  @section Library
 	-# libramlog.so libpthread.so
 - 2016-12-2,Menglong Woo,MenglongWoo@aliyun.com
- 	- 
+ 	-
 
 */
 
@@ -58,7 +58,7 @@ deta 过小影响系统性能，默认 deta = 30 min
 int main()
 {
 	int      len      = _1K * 128;
-	char    *data     = (char*)malloc(len);
+	char    *data     = (char *)malloc(len);
 	int      index    = 0;
 
 
@@ -69,16 +69,16 @@ int main()
 	// todo 检查时间配置
 	rl_clone();
 
-	
+
 	bzero(data, len);
 
 	int i = 0;
 	while(1) {
+		printf("%d write %d byte\n", i, len - 1);
 		index = i % 10;
 		memset(data, '0' + index, len  - 1);
 		rl_log(data);
-		// sleep(1);
-		usleep(10000);
+		sleep(1);
 		i++;
 	}
 	return 0;
