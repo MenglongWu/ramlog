@@ -36,11 +36,14 @@ int main(int argc,char **argv)
 	int input = 0;
 	int divisor = 0;
 
+	rl_resize(_1K * 64, _1M * 16);
+
 	printf("Hello !!!\n");
 	LOGI("INFOR run start");
 
 	rl_prefix("mylog");
 	rl_path("./log/t-type/");
+	
 	rl_clone();
 	LOGD("DEBUG call rl_clone()");
 	
@@ -77,7 +80,15 @@ int main(int argc,char **argv)
 	}
 
 	printf("program end\n");
-	LOGI("INFOR program end\r\n");	
+	LOGI("INFOR program end");	
+
+
+	LOGI("1. LOGI: information");
+	LOGT("2. LOGT: trace");
+	LOGD("3. LOGD: debug");
+	LOGW("4. LOGW: warning");
+	LOGA("5. LOGA: alarm");
+	LOGE("6. LOGE: error");
 	
 	return 0;
 }

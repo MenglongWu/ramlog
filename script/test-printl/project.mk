@@ -6,7 +6,7 @@ PRJ_SUBLEVEL   = "0"
 
 
 # default download.elf,download.dis,download.bin
-OUTPUT_ELF	= t-type.elf
+OUTPUT_ELF	= t-printl.elf
 OUTPUT_DIS	=
 OUTPUT_BIN	= 
 OUTPUT_SO 	= 
@@ -17,7 +17,9 @@ OUTPUT_DIR = release
 
 
 INCLUDE_DIR	+= -I./ -I./include -I./src 
-LFLAGS		+= -lpthread -lramlog
+LFLAGS		+= 
+# LFLAGS		+= -lepollserver -lpthread 
+# LFLAGS		+= -lminishell-ex  -lreadline -lhistory -ltermcap -lminishell-ex
 LIB_DIR 	+= 
 CFLAGS      +=   	 -Wall  -g 
 #-D_DEBUG
