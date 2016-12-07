@@ -1,9 +1,25 @@
 mainmenu "ramlog"
 
+menu ramlog
 config RAMLOG_DBG
 	bool "ramlog debug"
 
 config RAMLOG_100BYTE_CACHE
 	bool "only have 100byte"
 	depends on RAMLOG_DBG
+endmenu
+
+
+
+menu printl
+config LEVEL_GROUP
+	int "printl group "
+	default 6
+	range 2 8
+
+config SUB_GROUP
+	int "printl sub group "
+	default 8
+	range 2 8
+endmenu
 

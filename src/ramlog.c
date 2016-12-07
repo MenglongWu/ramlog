@@ -397,11 +397,11 @@ struct ramlog g_rl;
 
 #define STACK_SIZE (_1K * 12)
 #ifdef CONFIG_RAMLOG_100BYTE_CACHE
-	#define CACHE_SIZE (_1K * 64)		// 内存缓存容量
+	#define CACHE_SIZE (100)		// 内存缓存容量
 	#define DISK_SIZE (_1M * 4)		// 日志所占磁盘容量
 	#define CHECK_DISK_DETA (_SEC * 5)	// 自动检查磁盘容量间隔
 #else
-	#define CACHE_SIZE (100)
+	#define CACHE_SIZE (_1K * 64)
 	#define DISK_SIZE (_1M * 12)
 	#define CHECK_DISK_DETA (_MIN * 15)
 #endif
@@ -885,7 +885,7 @@ static inline bool _rl_log_is_empty()
 {
 	return (*g_rl.head == '\0') ? true : false;
 }
-#ifdef CONFIG_RAMLOG_100BYTE_CACHE
+#ifdef CONFIG_RAMLOG_DBG
 void _dbg_disp()
 {
 	assert(g_rl.size != 0);

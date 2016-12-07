@@ -25,4 +25,4 @@
 		
 
 # default project item
-export DP=pi14
+export DP=pi9
